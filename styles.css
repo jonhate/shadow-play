@@ -1221,13 +1221,21 @@ body.debug .debug-panel { display: block; }
 .music-toggle[aria-pressed='true'] em { color: var(--gold-light); }
 
 /* 帮助按钮 */
-.help-btn {
+/* 右上角工具条：不再压在左侧竖排题名与「非遗」印章上 */
+.util-rail {
   position: absolute;
-  left: 2.4vw;
-  bottom: 12.5vh;
+  right: 2.2vw;
+  top: 3.2vh;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.7vh;
+  z-index: 9;
+}
+
+.help-btn {
   width: clamp(26px, 2.1vw, 40px);
   aspect-ratio: 1;
-  z-index: 9;
   border: 0;
   border-radius: 50%;
   background: rgba(26, 15, 8, 0.86);
@@ -1242,11 +1250,7 @@ body.debug .debug-panel { display: block; }
 
 /* 重看教学 */
 .lesson-btn {
-  position: absolute;
-  left: 2.4vw;
-  bottom: 17.4vh;
   padding: 0.45vh 0.7vw;
-  z-index: 9;
   border: 0;
   border-radius: 3px;
   background: rgba(26, 15, 8, 0.86);
@@ -1262,11 +1266,7 @@ body.debug .debug-panel { display: block; }
 
 /* 工具按钮 + 面板 */
 .tools-btn {
-  position: absolute;
-  left: 2.4vw;
-  bottom: 21.6vh;
   padding: 0.45vh 0.7vw;
-  z-index: 9;
   border: 0;
   border-radius: 3px;
   background: rgba(26, 15, 8, 0.86);
@@ -1282,10 +1282,10 @@ body.debug .debug-panel { display: block; }
 
 .tools-panel {
   position: absolute;
-  left: 2.4vw;
-  bottom: 26vh;
+  right: 2.2vw;
+  top: 12.5vh;
   width: min(24vw, 360px);
-  max-height: 58vh;
+  max-height: 46vh;
   overflow: auto;
   padding: 10px;
   z-index: 20;
@@ -1296,7 +1296,7 @@ body.debug .debug-panel { display: block; }
     0 18px 50px rgba(0, 0, 0, 0.65);
   opacity: 0;
   visibility: hidden;
-  transform: translateY(8px);
+  transform: translateY(-8px);
   transition: opacity 0.22s, transform 0.22s, visibility 0.22s;
 }
 .tools-panel.is-on {

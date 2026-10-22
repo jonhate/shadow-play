@@ -23,7 +23,7 @@ const args = [
   '--use-angle=swiftshader',
   '--enable-unsafe-swiftshader',
   '--hide-scrollbars',
-  '--window-size=1920,1080',
+  `--window-size=${process.env.WIN_SIZE || '1920,1080'}`,
   '--force-device-scale-factor=1',
   ...(process.env.FAKE_CAM
     ? [
@@ -108,9 +108,11 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
       window.__errs.push('rejection: ' + String((e.reason && e.reason.stack) || e.reason));
     });`,
 });
+// 视口：默认 1920x1080，可用 SET_VP=1366x768 覆盖（验证小屏布局）
+const [vw, vh] = (process.env.SET_VP || '1920x1080').split('x').map(Number);
 await send('Emulation.setDeviceMetricsOverride', {
-  width: 1920,
-  height: 1080,
+  width: vw || 1920,
+  height: vh || 1080,
   deviceScaleFactor: 1,
   mobile: false,
 });
