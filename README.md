@@ -1,5 +1,10 @@
 # 掌中戲 · 手势皮影（Shadow Play Kiosk）
 
+**在线演示**：https://jonhate.github.io/shadow-play/ 　**源码**：https://github.com/jonhate/shadow-play
+
+> 在线版首次加载要下约 20MB（手势模型 + wasm + 皮影资产），家宽大约 10–20 秒；展馆现场请用本地部署（见 `docs/部署与开源.md`）。
+> 摄像头需要 HTTPS 或 localhost，线上版与本地版都满足。
+
 一个能直接跑的**数字皮影互动展项原型**：摄像头看见你，你举起双手，皮影戏台上的皮影就跟着你抬手、落手、行走、亮相。
 
 - 内容：Woooo Piying Lab 官方资产库的 `.woop` 皮影包（翎冠武生、持戟武将、长辫女子、骑鹤仙人……）
