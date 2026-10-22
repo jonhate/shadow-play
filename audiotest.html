@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>音频自检 · 掌中戲</title>
+    <style>
+      :root { --gold: #c9a227; --gold-light: #e8cd7a; --paper: #f3e7d0; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; padding: 3vh 4vw 8vh;
+        background: radial-gradient(circle at 50% 0%, #2a1a10, #120c07 70%);
+        color: var(--paper); font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+        line-height: 1.6;
+      }
+      h1 { font-size: 24px; letter-spacing: .16em; font-weight: 400; margin: 0 0 4px; color: #f6e8c6; }
+      .sub { color: rgba(226,200,160,.7); font-size: 14px; margin-bottom: 18px; }
+      .card {
+        background: rgba(28,17,9,.82); border: 1px solid rgba(201,162,39,.28);
+        border-radius: 6px; padding: 14px 16px; margin-bottom: 16px;
+      }
+      .card h2 {
+        font-size: 14px; font-weight: 400; letter-spacing: .14em; color: var(--gold);
+        margin: 0 0 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(201,162,39,.18);
+      }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      td { padding: 4px 6px; vertical-align: middle; }
+      td:first-child { color: rgba(226,200,160,.6); width: 34%; }
+      .ok { color: #7fd39b; } .bad { color: #ff8a72; } .warn { color: #f0c674; }
+      button {
+        font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 4px;
+        border: 1px solid rgba(201,162,39,.5); background: linear-gradient(180deg,#4a2b16,#2a1810);
+        color: #f6e8c6; cursor: pointer; letter-spacing: .06em;
+      }
+      button:hover { border-color: var(--gold); }
+      button.playing { background: linear-gradient(180deg,#7a4a1c,#4a2b10); border-color: var(--gold-light); }
+      .row { display: flex; align-items: center; gap: 10px; padding: 3px 0; border-bottom: 1px dotted rgba(201,162,39,.12); }
+      .row .txt { flex: 1; font-size: 13.5px; }
+      .row .scene { color: var(--gold-light); font-size: 12px; min-width: 88px; }
+      .bar { height: 6px; background: rgba(201,162,39,.15); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+      .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg,#7fd39b,#e8cd7a); transition: width .06s linear; }
+      .bgm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+      .bgm-grid button { width: 100%; }
+      pre {
+        margin: 10px 0 0; padding: 10px; background: rgba(0,0,0,.45); border-radius: 4px;
+        font-size: 12px; max-height: 30vh; overflow: auto; white-space: pre-wrap; word-break: break-all;
+      }
+      .hint { font-size: 13px; color: rgba(226,200,160,.75); }
+      .hint li { margin: 3px 0; }
+      code { color: var(--gold-light); }
+    </style>
+  </head>
+  <body>
+    <h1>音频自检</h1>
+    <div class="sub">掌中戲 · 台词与 BGM 是否真的出声（和展项用同一套代码）</div>
+
+    <div class="card">
+      <h2>状态</h2>
+      <table id="status"></table>
+      <div class="bar"><i id="meter"></i></div>
+      <div class="hint" id="unlockHint">第一次点页面任意处才能出声（浏览器规定）。</div>
+    </div>
+
+    <div class="card">
+      <h2>六幕 BGM（点一下切过去，再点一次停）</h2>
+      <div class="bgm-grid" id="bgmGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>台词（点 ▶ 逐句试听）</h2>
+      <div id="lineList"></div>
+      <pre id="log"></pre>
+    </div>
+
+    <script type="module">
+      import { Audio } from './app/audio.js';
+
+      const $ = (id) => document.getElementById(id);
+      const logEl = $('log');
+      const lines = [];
+      const log = (s) => { lines.push(s); logEl.textContent = lines.join('\n'); };
+
+      const audio = new Audio();
+      const scenes = [
+        ['moon', '月上柳梢'], ['battle', '沙场点兵'], ['crane', '仙翁跨鹤'],
+        ['xiang', '西厢·月下'], ['bawang', '霸王别姬'], ['baxian', '八仙·过海'],
+        ['curtain', '谢幕'], ['attract', '待客'],
+      ];
+
+      // 电平表：直接量 master 输出，证明“真的有声音”
+      let analyser = null, peak = 0;
+      function attachMeter() {
+        const ctx = audio.ensure();
+        if (!ctx || analyser) return;
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = 1024;
+        audio.masterGain.connect(analyser);
+        const buf = new Float32Array(analyser.fftSize);
+        setInterval(() => {
+          analyser.getFloatTimeDomainData(buf);
+          let p = 0;
+          for (let i = 0; i < buf.length; i++) p = Math.max(p, Math.abs(buf[i]));
+          peak = Math.max(peak * 0.92, p);
+          $('meter').style.width = Math.min(100, peak * 320) + '%';
+        }, 50);
+      }
+
+      window.addEventListener('pointerdown', () => {
+        audio.unlock();
+        attachMeter();
+        $('unlockHint').textContent = '已解锁音频 ✓（再点就是试听）';
+        $('unlockHint').className = 'hint ok';
+        render();
+      }, { once: true });
+
+      function status() {
+        const s = [
+          ['AudioContext', audio.ctx ? audio.ctx.state : '还没解锁（点一下页面）', audio.ctx && audio.ctx.state === 'running' ? 'ok' : 'warn'],
+          ['台词清单', audio.voiceReady === undefined ? '未加载' : audio.voiceReady ? '已加载' : '没有（audio/lines.json 缺失）', audio.voiceReady ? 'ok' : 'bad'],
+          ['可播台词', (audio.available ? audio.available.size : 0) + ' 句', audio.available && audio.available.size ? 'ok' : 'bad'],
+          ['已解码到内存', (audio.buffers ? audio.buffers.size : 0) + ' 句', audio.buffers && audio.buffers.size ? 'ok' : 'warn'],
+          ['人工 BGM 文件', audio.bgmFiles ? (audio.bgmFiles.size || '0（用程序合成）') : '未扫描', ''],
+          ['当前 BGM', audio.bgmId || '无', audio.bgmId ? 'ok' : 'warn'],
+          ['缺文件', (audio.missing ? audio.missing.size : 0) + ' 个', audio.missing && audio.missing.size ? 'bad' : 'ok'],
+        ];
+        $('status').innerHTML = s.map(([k, v, c]) => `<tr><td>${k}</td><td class="${c || ''}">${v}</td></tr>`).join('');
+      }
+
+      function render() {
+        status();
+        // BGM 按钮
+        if (!$('bgmGrid').childElementCount) {
+          for (const [id, name] of scenes) {
+            const b = document.createElement('button');
+            b.textContent = name;
+            b.onclick = () => {
+              if (audio.bgmId === id) { audio.stopBgm(); }
+              else { audio.startBgm(id); }
+              setTimeout(status, 120);
+            };
+            $('bgmGrid').append(b);
+          }
+        }
+        // 台词列表
+        if (!$('lineList').childElementCount && audio.linesManifest) {
+          const ms = audio.linesManifest.scenes || audio.linesManifest;
+          for (const [id, name] of scenes) {
+            const list = ms[id] || [];
+            list.forEach((item, i) => {
+              const row = document.createElement('div');
+              row.className = 'row';
+              const sc = document.createElement('span');
+              sc.className = 'scene';
+              sc.textContent = name;
+              const txt = document.createElement('span');
+              txt.className = 'txt';
+              txt.textContent = `${item.i}. ${item.text}`;
+              const btn = document.createElement('button');
+              btn.textContent = item.available ? '▶' : '缺失';
+              btn.disabled = !item.available;
+              btn.onclick = () => {
+                audio.sayLine(id, i);
+                btn.classList.add('playing');
+                setTimeout(() => btn.classList.remove('playing'), 1200);
+                log(`播放 ${id}/${String(i + 1).padStart(2, '0')}.mp3`);
+                setTimeout(status, 200);
+              };
+              row.append(sc, txt, btn);
+              $('lineList').append(row);
+            });
+          }
+        }
+      }
+
+      (async () => {
+        await audio.loadLines();
+        await audio.loadBgmFiles();
+        render();
+        log('清单加载完成：台词 ' + (audio.available ? audio.available.size : 0) + ' 句');
+        // 状态每秒刷新（解码是渐进的，能看到数字涨）
+        setInterval(() => { status(); audio.preloadLines(); }, 1000);
+      })();
+    </script>
+  </body>
+</html>

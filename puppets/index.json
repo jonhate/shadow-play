@@ -1,0 +1,152 @@
+[
+  {
+    "name": "翎冠武生",
+    "id": "woop_import_bc989d9f56f94f4295aa755f620414fe",
+    "category": "character",
+    "parts": 12,
+    "joints": 11,
+    "file": "woop_import_bc989d9f56f94f4295aa755f620414fe.woop",
+    "thumb": "woop_import_bc989d9f56f94f4295aa755f620414fe.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "持戟武将",
+    "id": "woop_import_422c0f88c6374c13ab6b7773fda2038e",
+    "category": "character",
+    "parts": 11,
+    "joints": 10,
+    "file": "woop_import_422c0f88c6374c13ab6b7773fda2038e.woop",
+    "thumb": "woop_import_422c0f88c6374c13ab6b7773fda2038e.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "长辫女子",
+    "id": "woop_import_f10a164b2547493eb0e0929112b798d1",
+    "category": "character",
+    "parts": 11,
+    "joints": 10,
+    "file": "woop_import_f10a164b2547493eb0e0929112b798d1.woop",
+    "thumb": "woop_import_f10a164b2547493eb0e0929112b798d1.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "骑鹤仙人",
+    "id": "woop_import_2806661ae9e64de9b44da8333740bf3a",
+    "category": "character",
+    "parts": 11,
+    "joints": 10,
+    "file": "woop_import_2806661ae9e64de9b44da8333740bf3a.woop",
+    "thumb": "woop_import_2806661ae9e64de9b44da8333740bf3a.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "踏云武生",
+    "id": "woop_import_6324af4d8ad94509ae6428f3e35423ab",
+    "category": "character",
+    "parts": 9,
+    "joints": 8,
+    "file": "woop_import_6324af4d8ad94509ae6428f3e35423ab.woop",
+    "thumb": "woop_import_6324af4d8ad94509ae6428f3e35423ab.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "乌帽书生",
+    "id": "woop_import_54d0d76f20164a729184e3451ac5b53b",
+    "category": "character",
+    "parts": 11,
+    "joints": 10,
+    "file": "woop_import_54d0d76f20164a729184e3451ac5b53b.woop",
+    "thumb": "woop_import_54d0d76f20164a729184e3451ac5b53b.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "鹿",
+    "id": "woop_import_7e9227b05b204f13966404c1b03e7604",
+    "category": "animal",
+    "parts": 10,
+    "joints": 9,
+    "file": "woop_import_7e9227b05b204f13966404c1b03e7604.woop",
+    "thumb": "woop_import_7e9227b05b204f13966404c1b03e7604.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "骏马",
+    "id": "woop_import_dc089ff62eff44a4a69325c283e4552e",
+    "category": "animal",
+    "parts": 11,
+    "joints": 10,
+    "file": "woop_import_dc089ff62eff44a4a69325c283e4552e.woop",
+    "thumb": "woop_import_dc089ff62eff44a4a69325c283e4552e.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "龙",
+    "id": "woop_import_9701ea2b020f415a905a85a4cdf417ea",
+    "category": "animal",
+    "parts": 8,
+    "joints": 7,
+    "file": "woop_import_9701ea2b020f415a905a85a4cdf417ea.woop",
+    "thumb": "woop_import_9701ea2b020f415a905a85a4cdf417ea.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "拱桥",
+    "id": "woop_import_b6286374061247e4a7117e12e2aa91bb",
+    "category": "architecture",
+    "parts": 1,
+    "joints": 0,
+    "file": "woop_import_b6286374061247e4a7117e12e2aa91bb.woop",
+    "thumb": "woop_import_b6286374061247e4a7117e12e2aa91bb.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "凉亭",
+    "id": "woop_import_820c79dee7414a5ab6191f2fc4928d70",
+    "category": "architecture",
+    "parts": 1,
+    "joints": 0,
+    "file": "woop_import_820c79dee7414a5ab6191f2fc4928d70.woop",
+    "thumb": "woop_import_820c79dee7414a5ab6191f2fc4928d70.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "宝塔",
+    "id": "woop_import_686ad17920b44766982b009bfdb84e13",
+    "category": "architecture",
+    "parts": 1,
+    "joints": 0,
+    "file": "woop_import_686ad17920b44766982b009bfdb84e13.woop",
+    "thumb": "woop_import_686ad17920b44766982b009bfdb84e13.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "竹子",
+    "id": "woop_import_63d67951fc22497eb73177eeac01f5ed",
+    "category": "plant",
+    "parts": 1,
+    "joints": 0,
+    "file": "woop_import_63d67951fc22497eb73177eeac01f5ed.woop",
+    "thumb": "woop_import_63d67951fc22497eb73177eeac01f5ed.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "牡丹",
+    "id": "woop_import_7e332bf9d2a5415590afbb4982bef604",
+    "category": "plant",
+    "parts": 1,
+    "joints": 0,
+    "file": "woop_import_7e332bf9d2a5415590afbb4982bef604.woop",
+    "thumb": "woop_import_7e332bf9d2a5415590afbb4982bef604.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  },
+  {
+    "name": "梅花",
+    "id": "woop_import_f980f95d2aaf4a5e914af8b9273fc97e",
+    "category": "plant",
+    "parts": 1,
+    "joints": 0,
+    "file": "woop_import_f980f95d2aaf4a5e914af8b9273fc97e.woop",
+    "thumb": "woop_import_f980f95d2aaf4a5e914af8b9273fc97e.webp",
+    "source": "https://piying.woooostudio.com/ 官方资产库"
+  }
+]

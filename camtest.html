@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>摄像头自检 · 掌中戲</title>
+    <style>
+      :root {
+        --ink: #14100c;
+        --paper: #f3e7d0;
+        --gold: #c9a227;
+        --red: #b02a1a;
+        --green: #2f7d4f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at 50% 0%, #2a1a10, #120c07 70%);
+        color: var(--paper);
+        font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+        padding: 3vh 4vw 6vh;
+        line-height: 1.7;
+      }
+      h1 {
+        font-size: 26px;
+        letter-spacing: 0.16em;
+        font-weight: 400;
+        margin: 0 0 6px;
+        color: #f6e8c6;
+      }
+      .sub { color: rgba(226, 200, 160, 0.7); font-size: 14px; margin-bottom: 22px; }
+      .bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+      button {
+        font: inherit;
+        font-size: 15px;
+        padding: 10px 20px;
+        border-radius: 4px;
+        border: 1px solid rgba(201, 162, 39, 0.6);
+        background: linear-gradient(180deg, #4a2b16, #2a1810);
+        color: #f6e8c6;
+        cursor: pointer;
+        letter-spacing: 0.08em;
+      }
+      button:hover { border-color: var(--gold); background: linear-gradient(180deg, #5c3519, #331d12); }
+      button:disabled { opacity: 0.5; cursor: default; }
+      button.primary { border-color: var(--gold); box-shadow: 0 0 16px rgba(201, 162, 39, 0.25); }
+      .grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr); gap: 18px; }
+      @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+      .card {
+        background: rgba(28, 17, 9, 0.82);
+        border: 1px solid rgba(201, 162, 39, 0.28);
+        border-radius: 6px;
+        padding: 16px 18px;
+      }
+      .card h2 {
+        font-size: 15px;
+        font-weight: 400;
+        letter-spacing: 0.14em;
+        color: var(--gold);
+        margin: 0 0 12px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(201, 162, 39, 0.18);
+      }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      td { padding: 5px 0; vertical-align: top; }
+      td:first-child { color: rgba(226, 200, 160, 0.62); width: 42%; }
+      .ok { color: #7fd39b; }
+      .bad { color: #ff8a72; }
+      .warn { color: #f0c674; }
+      #preview {
+        width: 100%;
+        border-radius: 4px;
+        background: #000;
+        aspect-ratio: 16 / 9;
+        object-fit: cover;
+        transform: scaleX(-1);
+      }
+      pre {
+        margin: 12px 0 0;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.45);
+        border-radius: 4px;
+        font-size: 12.5px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-all;
+        max-height: 40vh;
+        overflow: auto;
+        color: #e8dcc4;
+      }
+      .hint { font-size: 13.5px; color: rgba(226, 200, 160, 0.78); margin-top: 12px; }
+      .hint li { margin: 4px 0; }
+      .tag {
+        display: inline-block;
+        padding: 1px 7px;
+        border-radius: 3px;
+        font-size: 12px;
+        margin-left: 6px;
+      }
+      .tag.ok { background: rgba(47, 125, 79, 0.3); }
+      .tag.bad { background: rgba(176, 42, 26, 0.3); }
+      .tag.warn { background: rgba(201, 162, 39, 0.25); }
+    </style>
+  </head>
+  <body>
+    <h1>摄像头自检</h1>
+    <div class="sub">掌中戲 · 手势皮影展项 · 用来定位“摄像头为什么没起来”</div>
+
+    <div class="bar">
+      <button class="primary" id="run">开始自检</button>
+      <button id="again" disabled>再试一次</button>
+      <button id="copy">复制结果</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>一 · 环境与权限</h2>
+        <table id="env"></table>
+        <h2 style="margin-top: 18px">二 · 找到的摄像头设备</h2>
+        <table id="devices"></table>
+      </div>
+
+      <div class="card">
+        <h2>三 · 实际打开画面</h2>
+        <video id="preview" playsinline muted></video>
+        <table id="result" style="margin-top: 12px"></table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 18px">
+      <h2>四 · 逐项尝试记录（可复制发给技术）</h2>
+      <pre id="log">点上面的「开始自检」。</pre>
+      <div class="hint">
+        <b>如果自检失败，按错误码对照：</b>
+        <ul>
+          <li><code>NotAllowedError</code>：浏览器/系统不允许。Windows 设置 → 隐私和安全性 → 摄像头 → 打开「摄像头访问」和「允许桌面应用访问摄像头」；再点地址栏左侧的摄像头图标允许本站。</li>
+          <li><code>NotFoundError</code>：系统根本没看到设备。检查 USB/排线、设备管理器里有没有「照相机」，笔记本有没有物理遮挡开关。</li>
+          <li><code>NotReadableError</code> / <code>TrackStartError</code>：设备被别的程序占用（腾讯会议、OBS、相机 App、某些安全软件），全部关掉再试。</li>
+          <li><code>OverconstrainedError</code>：设备不支持请求的分辨率（自检会自动降级重试）。</li>
+          <li><code>SecurityError</code> / <code>mediaDevices 不存在</code>：地址不是 https 或 127.0.0.1（不能双击 html 用 file:// 打开）。</li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const logEl = $('log');
+      const lines = [];
+      const log = (s) => {
+        lines.push(s);
+        logEl.textContent = lines.join('\n');
+      };
+      const put = (tableId, rows) => {
+        $(tableId).innerHTML = rows
+          .map(([k, v, cls]) => `<tr><td>${k}</td><td class="${cls || ''}">${v}</td></tr>`)
+          .join('');
+      };
+      const badge = (state) =>
+        state === 'granted' ? '<span class="tag ok">已授权</span>' : state === 'denied' ? '<span class="tag bad">已拒绝</span>' : state === 'prompt' ? '<span class="tag warn">未决定</span>' : '';
+
+      async function env() {
+        const rows = [];
+        rows.push(['页面地址', location.href]);
+        rows.push(['安全上下文', String(window.isSecureContext), window.isSecureContext ? 'ok' : 'bad']);
+        rows.push(['mediaDevices', navigator.mediaDevices ? '存在' : '不存在（必须 https 或 127.0.0.1）', navigator.mediaDevices ? 'ok' : 'bad']);
+        rows.push(['getUserMedia', navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? '存在' : '不存在', navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? 'ok' : 'bad']);
+        let perm = '不支持 Permissions API';
+        try {
+          if (navigator.permissions) {
+            const p = await navigator.permissions.query({ name: 'camera' });
+            perm = p.state + ' ' + badge(p.state);
+          }
+        } catch (e) {
+          perm = '查询失败：' + e.name;
+        }
+        rows.push(['权限状态', perm]);
+        rows.push(['UA', navigator.userAgent]);
+        put('env', rows.map(([k, v, c]) => [k, v, c || '']));
+        log('环境: secureContext=' + window.isSecureContext + ' mediaDevices=' + !!navigator.mediaDevices);
+      }
+
+      async function devices() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+          put('devices', [['—', '无法枚举（没有 mediaDevices）', 'bad']]);
+          return [];
+        }
+        const list = await navigator.mediaDevices.enumerateDevices();
+        const cams = list.filter((d) => d.kind === 'videoinput');
+        const rows = cams.length
+          ? cams.map((d, i) => [`摄像头 ${i + 1}`, (d.label || '（未授权前看不到名字）') + '<br><span style="opacity:.5;font-size:12px">' + d.deviceId.slice(0, 24) + '…</span>', 'ok'])
+          : [['摄像头', '一个都没找到', 'bad']];
+        const others = list.filter((d) => d.kind !== 'videoinput').length;
+        rows.push(['其它设备', others + ' 个（音频输入/输出等）']);
+        put('devices', rows);
+        log('设备: videoinput=' + cams.length + ' total=' + list.length);
+        return cams;
+      }
+
+      const attempts = [
+        ['默认（任意摄像头）', { video: true, audio: false }],
+        ['960x540 + 前置偏好', { video: { width: 960, height: 540, facingMode: 'user' }, audio: false }],
+        ['640x480 最小要求', { video: { width: 640, height: 480 }, audio: false }],
+        ['只要视频能力', { video: { width: { ideal: 320 } }, audio: false }],
+      ];
+
+      async function tryOpen(constraints, label) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia(constraints);
+          const track = stream.getVideoTracks()[0];
+          const s = track.getSettings ? track.getSettings() : {};
+          log('✅ ' + label + ' → ' + (s.width || '?') + 'x' + (s.height || '?') + ' @' + (s.frameRate || '?') + 'fps  device=' + (s.deviceId || '').slice(0, 12));
+          return { ok: true, stream, settings: s, trackLabel: track.label };
+        } catch (e) {
+          log('❌ ' + label + ' → ' + e.name + ': ' + e.message + (e.constraint ? ' [' + e.constraint + ']' : ''));
+          return { ok: false, error: e };
+        }
+      }
+
+      async function run() {
+        $('run').disabled = true;
+        lines.length = 0;
+        logEl.textContent = '';
+        log('=== 自检开始 ' + new Date().toLocaleString() + ' ===');
+        put('result', []);
+
+        await env();
+
+        let cams = [];
+        try {
+          cams = await devices();
+        } catch (e) {
+          log('枚举设备失败: ' + e.name + ' ' + e.message);
+        }
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          put('result', [['结果', '这个页面拿不到摄像头 API', 'bad']]);
+          finish();
+          return;
+        }
+
+        let got = null;
+        for (const [label, c] of attempts) {
+          const r = await tryOpen(c, label);
+          if (r.ok) {
+            got = r;
+            break;
+          }
+          // 权限被拒 / 没有设备：继续换参数也没用，直接停
+          if (['NotAllowedError', 'SecurityError'].includes(r.error.name)) {
+            log('→ 权限被拒绝或环境不允许，停止继续尝试');
+            break;
+          }
+        }
+
+        if (got) {
+          const v = $('preview');
+          v.srcObject = got.stream;
+          await v.play().catch(() => {});
+          put('result', [
+            ['结果', '摄像头可用 ✔', 'ok'],
+            ['设备名', got.trackLabel || '（未知）', 'ok'],
+            ['分辨率', (got.settings.width || '?') + ' × ' + (got.settings.height || '?')],
+            ['帧率', (got.settings.frameRate || '?') + ' fps'],
+          ]);
+          log('=== 结论：摄像头本身正常，可以用于手势识别 ===');
+        } else {
+          const errName = (lines.find((l) => l.startsWith('❌')) || '').split('→ ')[1] || '';
+          put('result', [
+            ['结果', '打不开摄像头 ✘', 'bad'],
+            ['错误', errName.split(':')[0] || '见下方记录', 'bad'],
+          ]);
+          log('=== 结论：摄像头打不开，按上面错误码排查 ===');
+        }
+        finish();
+      }
+
+      function finish() {
+        $('run').disabled = false;
+        $('again').disabled = false;
+      }
+
+      $('run').onclick = () => run().catch((e) => log('自检脚本异常: ' + e));
+      $('again').onclick = () => run().catch((e) => log('自检脚本异常: ' + e));
+      $('copy').onclick = async () => {
+        const text = [...lines, '', '--- 环境 ---', document.getElementById('env').innerText, '', '--- 结果 ---', document.getElementById('result').innerText].join('\n');
+        try {
+          await navigator.clipboard.writeText(text);
+          $('copy').textContent = '已复制 ✓';
+          setTimeout(() => ($('copy').textContent = '复制结果'), 1600);
+        } catch {
+          logEl.textContent = text;
+          log('（剪贴板不可用，请手动全选复制上面的记录）');
+        }
+      };
+    </script>
+  </body>
+</html>

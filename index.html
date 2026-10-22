@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>掌中戲 · 手势皮影</title>
+    <meta name="description" content="非物质文化遗产数字皮影互动展项：举手即可执签，用手势操纵皮影。" />
+    <link rel="stylesheet" href="./styles.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' fill='%23b02a1e'/><text x='16' y='23' font-size='20' text-anchor='middle' fill='%23f3e3c3' font-family='serif'>影</text></svg>" />
+  </head>
+  <body>
+    <div id="app" data-state="attract" data-scene="moon">
+      <!-- 灯箱影幕 -->
+      <div class="stage-wrap">
+        <div class="stage-frame">
+          <div class="stage-inner" id="stage-inner">
+            <div class="backdrop">
+              <div class="sky"></div>
+              <div class="moon"></div>              <svg class="clouds" viewBox="0 0 1200 700" preserveAspectRatio="none" aria-hidden="true">
+                <g class="cloud c1">
+                  <path d="M120 214c-26 0-44-18-44-40s18-40 44-40c6-30 34-52 68-52 30 0 55 16 66 39 8-4 17-6 27-6 30 0 55 22 55 49s-25 50-55 50z" />
+                </g>
+                <g class="cloud c2">
+                  <path d="M840 150c-30 0-52-21-52-47s22-47 52-47c7-35 40-61 80-61 35 0 65 19 78 46 9-5 20-7 32-7 35 0 65 26 65 58s-30 58-65 58z" />
+                </g>
+                <g class="cloud c3">
+                  <path d="M420 470c-22 0-38-15-38-34s16-34 38-34c5-26 29-45 58-45 26 0 47 14 57 33 7-3 15-5 23-5 26 0 47 19 47 42s-21 42-47 42z" />
+                </g>
+              </svg>
+              <svg class="mountains" viewBox="0 0 1200 700" preserveAspectRatio="none" aria-hidden="true">
+                <path class="m-far" d="M0 560 L110 470 L190 505 L280 415 L370 500 L470 440 L560 512 L660 430 L760 505 L860 445 L960 515 L1070 455 L1200 540 L1200 700 L0 700 Z" />
+                <path class="m-mid" d="M0 620 L120 560 L230 600 L330 540 L450 605 L580 555 L700 610 L820 560 L940 615 L1060 570 L1200 620 L1200 700 L0 700 Z" />
+              </svg>
+            </div>
+            <div class="stage-sheen"></div>
+            <canvas id="gl"></canvas>
+            <div class="stage-grain"></div>
+            <div class="stage-vignette"></div>
+          </div>
+          <div class="frame-gold"></div>
+          <svg class="corner tl" viewBox="0 0 64 64" aria-hidden="true"><path d="M2 2h60v10H12v50H2z" /><path d="M22 22h22v6H28v14h-6z" /></svg>
+          <svg class="corner tr" viewBox="0 0 64 64" aria-hidden="true"><path d="M2 2h60v10H12v50H2z" /><path d="M22 22h22v6H28v14h-6z" /></svg>
+          <svg class="corner bl" viewBox="0 0 64 64" aria-hidden="true"><path d="M2 2h60v10H12v50H2z" /><path d="M22 22h22v6H28v14h-6z" /></svg>
+          <svg class="corner br" viewBox="0 0 64 64" aria-hidden="true"><path d="M2 2h60v10H12v50H2z" /><path d="M22 22h22v6H28v14h-6z" /></svg>
+        </div>
+
+        <!-- 唤醒进度 -->
+        <div class="wake" id="wake-progress">
+          <div class="wake-ring"></div>
+          <div class="wake-text" id="wake-text">举手 · 开演</div>
+        </div>
+        <div class="countdown" id="countdown"></div>
+      </div>
+
+      <!-- 竖排题名 -->
+      <div class="title-rail">
+        <div class="title-main">掌中戲</div>
+        <div class="title-sub">数字皮影 · 手势互动</div>
+        <div class="seal" aria-label="非物质文化遗产">
+          <span>非</span><span>遺</span><span>數</span><span>字</span>
+        </div>
+      </div>
+
+      <!-- 出目 -->
+      <div class="scene-tag">
+        <span id="scene-index">第一出</span>
+        <span class="dot"></span>
+        <span id="scene-name">月上柳梢</span>
+        <span id="scene-sub">才子佳人 · 庭院景</span>
+      </div>
+
+      <!-- 台词 -->
+      <div class="caption-bar">
+        <span class="cap-mark">「</span>
+        <span id="caption"></span>
+        <span class="cap-mark">」</span>
+      </div>
+
+      <!-- 上手引导（待客时显示，开演后收起；按 H 可随时调出） -->
+      <div class="tutorial" id="tutorial">
+        <div class="tut-head">
+          <svg class="tut-icon" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M14 24V13a3 3 0 0 1 6 0v9m0-9v-2.5a3 3 0 0 1 6 0V22m0-8.5a3 3 0 0 1 6 0V26m0-6.5a3 3 0 0 1 6 0V29c0 8-5 13-12 13h-2c-4 0-7-2-9-5l-5-7c-1.4-2 .2-4.4 2.4-3.6 1 .3 1.8 1 2.4 2l1.2 2" />
+          </svg>
+          <div>
+            <div class="tut-title" id="tut-title">把手举起来，皮影就听你的</div>
+            <div class="tut-sub" id="tut-sub">站到屏幕前 1.5 米，举手即可开演</div>
+          </div>
+        </div>
+        <ul class="tut-list" id="tut-list">
+          <li><b>张手移动</b><span>指挥皮影的两只手，走快了它会自己迈步</span></li>
+          <li><b>握拳＝定住</b><span>握拳，这只手就停在原地（行话叫“执签”）</span></li>
+          <li><b>两手一合</b><span>作揖——剧情要靠它往下走</span></li>
+          <li><b>双手举高</b><span>亮相；举久一点换下一出戏</span></li>
+        </ul>
+        <div class="tut-foot">按 <kbd>H</kbd> 可随时调出这张图</div>
+      </div>
+
+      <!-- 教学关：每一步都要真的做出来才过 -->
+      <div class="lesson" id="lesson">
+        <div class="lesson-head">
+          <span id="lesson-index">第 1 / 4 步</span>
+          <div class="lesson-dots" id="lesson-dots"></div>
+        </div>
+        <div class="lesson-title" id="lesson-title">举起一只手</div>
+        <div class="lesson-tip" id="lesson-tip"></div>
+        <div class="lesson-track"><div class="lesson-bar" id="lesson-bar"></div></div>
+        <div class="lesson-foot">做到就过 · <kbd>T</kbd> 跳过 · <kbd>H</kbd> 看全部动作</div>
+      </div>
+
+      <!-- 剧情：这一步要你做的动作 -->
+      <div class="cue" id="cue"></div>
+
+      <!-- 双手状态牌 -->
+      <div class="hand-hud" id="hand-hud">
+        <div class="hand-chip" id="chip-left"><b>左边</b><span id="hand-left">未见</span></div>
+        <div class="hand-chip" id="chip-right"><b>右边</b><span id="hand-right">未见</span></div>
+        <i class="hud-note">小窗是镜像：手在哪边，皮影哪边的手就动</i>
+      </div>
+
+      <!-- 手势提示：基础模式 -->
+      <div class="hint-row hint-basic">
+        <div class="hint" data-hint="wake">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V11m0-4.5v-1a1.5 1.5 0 0 1 3 0V11m0-3.5a1.5 1.5 0 0 1 3 0V13m0-3a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L5 15c-.6-.9-.2-2 .8-2.3.8-.2 1.6.1 2 .9l.2.4" /></svg>
+          <b>举手</b><i>开演</i>
+        </div>
+        <div class="hint" data-hint="grab">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V8.5a1.5 1.5 0 0 1 3 0V13m0-4.5V7a1.5 1.5 0 0 1 3 0v6m0-5a1.5 1.5 0 0 1 3 0v5.5a6 6 0 1 1-12 0V12" /></svg>
+          <b>握拳</b><i>定住这只手</i>
+        </div>
+        <div class="hint" data-hint="bow">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15c0-3 2-5 6-5s6 2 6 5M9 8.5 12 5l3 3.5" /></svg>
+          <b>两手一合</b><i>作揖</i>
+        </div>
+        <div class="hint" data-hint="raise">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V9m14 11V9M5 9l7-5 7 5" /></svg>
+          <b>双手举高</b><i>亮相 / 换一出</i>
+        </div>
+        <div class="hint" data-hint="freeze">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 6v6l4 2" /></svg>
+          <b>双拳</b><i>定格留影</i>
+        </div>
+      </div>
+
+      <!-- 手势提示：手指模式（方案一） -->
+      <div class="hint-row hint-finger">
+        <div class="hint" data-hint="wake">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 11V6.5a1.5 1.5 0 0 1 3 0V11m0-4.5v-1a1.5 1.5 0 0 1 3 0V11m0-3.5a1.5 1.5 0 0 1 3 0V13m0-3a1.5 1.5 0 0 1 3 0v6a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L5 15c-.6-.9-.2-2 .8-2.3.8-.2 1.6.1 2 .9l.2.4" /></svg>
+          <b>举手</b><i>开演</i>
+        </div>
+        <div class="hint" data-hint="grab">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 13V8.5a1.5 1.5 0 0 1 3 0V13m0-4.5V7a1.5 1.5 0 0 1 3 0v6m0-5a1.5 1.5 0 0 1 3 0v5.5a6 6 0 1 1-12 0V12" /></svg>
+          <b>捏住</b><i>执签 · 手跟着走</i>
+        </div>
+        <div class="hint" data-hint="bow">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15c0-3 2-5 6-5s6 2 6 5M9 8.5 12 5l3 3.5" /></svg>
+          <b>松开</b><i>手臂垂下</i>
+        </div>
+        <div class="hint" data-hint="raise">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 5c1.5 3 4 3 5 6M10 5c-.5 3.5-2.5 4-2.5 7M14 5c-3.5 4.5-8 6.5-8.5 11" /></svg>
+          <b>搓动</b><i>转腕</i>
+        </div>
+        <div class="hint" data-hint="freeze">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M5 12l3-3m-3 3 3 3M19 12l-3-3m3 3-3 3" /></svg>
+          <b>手挪左右</b><i>走位</i>
+        </div>
+      </div>
+
+      <!-- 摄像头预览 -->
+      <div class="camera-card is-hidden" id="camera-card">
+        <video id="cam" playsinline muted></video>
+        <canvas id="lm" width="240" height="135"></canvas>
+        <div class="camera-fallback" id="camera-fallback">摄像头未启用</div>
+        <div class="camera-label">手势识别</div>
+      </div>
+
+      <!-- 鼠标开关（就在镜头框上面）：不想要鼠标兜底就关掉 -->
+      <button class="mouse-toggle" id="mouse-toggle" type="button" aria-pressed="false">
+        <b>鼠标</b>
+        <i class="sw"><s></s></i>
+        <em id="mouse-state">关</em>
+      </button>
+
+      <!-- 音乐开关：嫌吵直接关 -->
+      <button class="music-toggle" id="music-toggle" type="button" aria-pressed="true">
+        <b>音乐</b>
+        <i class="sw"><s></s></i>
+        <em id="music-state">开</em>
+      </button>
+
+      <!-- 帮助按钮（触摸屏也能点开引导，不必记快捷键） -->
+      <button class="help-btn" id="help-btn" type="button" title="使用说明（H）">?</button>
+      <!-- 重看教学关 -->
+      <button class="lesson-btn" id="lesson-btn" type="button" title="重看教学关（T）">教学</button>
+
+      <!-- 识别到的姿态反馈 -->
+      <div class="posture" id="posture"></div>
+
+      <!-- 调试面板（?debug=1 才显示） -->
+      <pre class="debug-panel" id="debug-panel"></pre>
+
+      <div class="status-line">
+        <span id="status-line">待客 · 举手即开演</span>
+        <span class="sep">·</span>
+        <span id="fps">— fps</span>
+      </div>
+
+      <div class="seal-stamp" id="seal-stamp"></div>
+      <div class="toast" id="toast"></div>
+
+      <!-- 留影 -->
+      <div class="photo-layer" id="photo-layer">
+        <div class="photo-card">
+          <img id="photo-img" alt="留影" />
+          <div class="photo-caption">丙午年 · 掌中戲留影</div>
+          <div class="photo-seal">留影</div>
+        </div>
+      </div>
+
+      <!-- 启幕 -->
+      <div class="loading" id="loading">
+        <div class="loading-inner">
+          <div class="loading-lantern">
+            <svg viewBox="0 0 120 160" aria-hidden="true">
+              <rect x="46" y="6" width="28" height="8" rx="3" />
+              <path d="M30 24h60l10 52-10 52H30L20 76z" />
+              <path d="M40 44v64M60 38v76M80 44v64" class="ribs" />
+              <rect x="52" y="132" width="16" height="14" rx="3" />
+              <path d="M60 146v12" />
+            </svg>
+          </div>
+          <div class="loading-title">掌中戲</div>
+          <div class="loading-sub" id="loading-label">正在请出皮影…</div>
+          <div class="loading-track"><div class="loading-bar" id="loading-bar"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./app/main.js"></script>
+  </body>
+</html>

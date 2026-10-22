@@ -1,0 +1,205 @@
+{
+  "generated": "2026-10-22T19:27:12.761Z",
+  "scenes": {
+    "moon": [
+      {
+        "i": 1,
+        "text": "月上柳梢头，人约黄昏后。",
+        "file": "lines/moon/01.mp3",
+        "available": true
+      },
+      {
+        "i": 2,
+        "text": "（作揖）小生这厢有礼了。",
+        "file": "lines/moon/02.mp3",
+        "available": true
+      },
+      {
+        "i": 3,
+        "text": "佳人还礼，低头不语，脸先红了。",
+        "file": "lines/moon/03.mp3",
+        "available": true
+      },
+      {
+        "i": 4,
+        "text": "一盏灯，两张皮，一段情。",
+        "file": "lines/moon/04.mp3",
+        "available": true
+      }
+    ],
+    "battle": [
+      {
+        "i": 1,
+        "text": "帐下点兵，鼓声三通。",
+        "file": "lines/battle/01.mp3",
+        "available": true
+      },
+      {
+        "i": 2,
+        "text": "（亮相）好一员虎将！",
+        "file": "lines/battle/02.mp3",
+        "available": true
+      },
+      {
+        "i": 3,
+        "text": "刀枪并举，杀声震天。",
+        "file": "lines/battle/03.mp3",
+        "available": true
+      },
+      {
+        "i": 4,
+        "text": "鞭为马，枪作阵——千军万马，只在一双手。",
+        "file": "lines/battle/04.mp3",
+        "available": true
+      }
+    ],
+    "crane": [
+      {
+        "i": 1,
+        "text": "云深不知处，一鹤自天来。",
+        "file": "lines/crane/01.mp3",
+        "available": true
+      },
+      {
+        "i": 2,
+        "text": "（举高）仙翁跨鹤，腾云而起。",
+        "file": "lines/crane/02.mp3",
+        "available": true
+      },
+      {
+        "i": 3,
+        "text": "人间千年，不过一梦。",
+        "file": "lines/crane/03.mp3",
+        "available": true
+      }
+    ],
+    "xiang": [
+      {
+        "i": 1,
+        "text": "（张生上）待月西厢下，迎风户半开。",
+        "file": "lines/xiang/01.mp3",
+        "available": true
+      },
+      {
+        "i": 2,
+        "text": "（作揖）小生张珙，久慕小姐才名。",
+        "file": "lines/xiang/02.mp3",
+        "available": true
+      },
+      {
+        "i": 3,
+        "text": "（莺莺还礼）先生万福。",
+        "file": "lines/xiang/03.mp3",
+        "available": true
+      },
+      {
+        "i": 4,
+        "text": "（举高）隔墙花影动，疑是玉人来。",
+        "file": "lines/xiang/04.mp3",
+        "available": true
+      },
+      {
+        "i": 5,
+        "text": "月下相会，一诺千金。",
+        "file": "lines/xiang/05.mp3",
+        "available": true
+      }
+    ],
+    "bawang": [
+      {
+        "i": 1,
+        "text": "（帐中）四面楚歌，大王且饮酒。",
+        "file": "lines/bawang/01.mp3",
+        "available": true
+      },
+      {
+        "i": 2,
+        "text": "（作揖）虞姬，这一拜，便是永别。",
+        "file": "lines/bawang/02.mp3",
+        "available": true
+      },
+      {
+        "i": 3,
+        "text": "（举高）力拔山兮气盖世！",
+        "file": "lines/bawang/03.mp3",
+        "available": true
+      },
+      {
+        "i": 4,
+        "text": "（舞剑）汉兵已略地，四面楚歌声。",
+        "file": "lines/bawang/04.mp3",
+        "available": true
+      },
+      {
+        "i": 5,
+        "text": "大王意气尽，贱妾何聊生。",
+        "file": "lines/bawang/05.mp3",
+        "available": true
+      }
+    ],
+    "baxian": [
+      {
+        "i": 1,
+        "text": "东海茫茫，八仙赴会。",
+        "file": "lines/baxian/01.mp3",
+        "available": true
+      },
+      {
+        "i": 2,
+        "text": "（举高）各显神通，腾云过海！",
+        "file": "lines/baxian/02.mp3",
+        "available": true
+      },
+      {
+        "i": 3,
+        "text": "（甩手）龙王现身，浪高三丈。",
+        "file": "lines/baxian/03.mp3",
+        "available": true
+      },
+      {
+        "i": 4,
+        "text": "八仙过海，各显神通。",
+        "file": "lines/baxian/04.mp3",
+        "available": true
+      }
+    ],
+    "curtain": [
+      {
+        "i": 1,
+        "text": "六出已尽 · 灯未灭，戏未散",
+        "file": "lines/curtain/01.mp3",
+        "available": true
+      },
+      {
+        "i": 2,
+        "text": "两位角儿，向台下作揖",
+        "file": "lines/curtain/02.mp3",
+        "available": true
+      },
+      {
+        "i": 3,
+        "text": "亮相——一亮相，满堂彩",
+        "file": "lines/curtain/03.mp3",
+        "available": true
+      },
+      {
+        "i": 4,
+        "text": "换位，走一个圆场",
+        "file": "lines/curtain/04.mp3",
+        "available": true
+      },
+      {
+        "i": 5,
+        "text": "再拜，谢幕",
+        "file": "lines/curtain/05.mp3",
+        "available": true
+      },
+      {
+        "i": 6,
+        "text": "一盏灯，一张皮，谢谢观看",
+        "file": "lines/curtain/06.mp3",
+        "available": true
+      }
+    ]
+  }
+}

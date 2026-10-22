@@ -1,0 +1,30 @@
+# 依赖与构建产物（本项目无需 npm install，这里只是兜底）
+node_modules/
+package-lock.json
+
+# 开发期截图（全尺寸，几十 MB；仓库只放 docs/images/ 的压缩版）
+shots/
+tools/steps-*.json
+
+# 本地运行时产物
+server.log
+server.err.log
+.edge-kiosk/
+*.log
+
+# 备份
+_backup/
+
+# 系统垃圾
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+
+# ---- 版权敏感素材（见 docs/部署与开源.md）----
+# 若仓库要公开，请取消下面两行的注释：
+# audio/bgm/
+# puppets/
