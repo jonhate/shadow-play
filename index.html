@@ -192,6 +192,46 @@
       <button class="help-btn" id="help-btn" type="button" title="使用说明（H）">?</button>
       <!-- 重看教学关 -->
       <button class="lesson-btn" id="lesson-btn" type="button" title="重看教学关（T）">教学</button>
+      <!-- 工具面板：给不懂技术的人用，所有自检与模式切换都在这 -->
+      <button class="tools-btn" id="tools-btn" type="button" title="工具与自检">工具</button>
+
+      <div class="tools-panel" id="tools-panel">
+        <div class="tools-head">
+          <span>工具与自检</span>
+          <button id="tools-close" type="button" aria-label="关闭">×</button>
+        </div>
+        <button data-tool="camtest" type="button">
+          <b>摄像头自检</b><span>打不开摄像头时先点这个，会告诉你权限、设备、错误码</span>
+        </button>
+        <button data-tool="audiotest" type="button">
+          <b>音频自检</b><span>逐句试听台词、试听六幕背景音乐，带电平条</span>
+        </button>
+        <button data-tool="debug" type="button">
+          <b>诊断面板</b><span>帧率、识别到几只手、推理耗时</span>
+        </button>
+        <button data-tool="fullscreen" type="button">
+          <b>全屏显示</b><span>浏览器没自动全屏时点这里</span>
+        </button>
+        <button data-tool="kiosk" type="button">
+          <b>展馆模式</b><span>隐藏鼠标、屏蔽右键、出错自动重载</span>
+        </button>
+        <button data-tool="duo" type="button">
+          <b>双人同台</b><span>两位观众各控一个皮影（需要 4 只手）</span>
+        </button>
+        <button data-tool="finger" type="button">
+          <b>手指模式</b><span>拇指食指捏住＝执签，搓动＝转腕</span>
+        </button>
+        <button data-tool="lesson" type="button">
+          <b>重看教学关</b><span>按当前模式放一遍五步教学</span>
+        </button>
+        <button data-tool="guide" type="button">
+          <b>使用说明</b><span>屏幕上那张动作总表</span>
+        </button>
+        <button data-tool="reset" type="button">
+          <b>清除记忆</b><span>忘掉教学进度与开关状态，恢复出厂</span>
+        </button>
+        <div class="tools-foot">当前地址参数会写进链接，可直接收藏</div>
+      </div>
 
       <!-- 识别到的姿态反馈 -->
       <div class="posture" id="posture"></div>

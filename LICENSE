@@ -1,0 +1,32 @@
+MIT License
+
+Copyright (c) 2026 jonhate（掌中戲 · 手势皮影）
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+素材授权说明（重要，与上方软件许可证分开看）：
+
+- `puppets/*.woop` 皮影资产来自 Woooo Piying Lab（https://piying.woooostudio.com/），
+  已获得作者授权用于本项目；使用前请阅读其站点的条款。
+- `audio/bgm/*.mp3` 戏剧原声片段为演出/录音片段，已获得相关授权用于本项目；
+  第三方使用前请自行确认权利归属。
+- `models/gesture_recognizer.task` 与 `vendor/` 内的库见各自许可证
+  （MediaPipe：Apache-2.0；three.js：MIT；fflate：MIT）。

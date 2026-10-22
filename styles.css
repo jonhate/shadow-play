@@ -1260,6 +1260,114 @@ body.debug .debug-panel { display: block; }
 }
 .lesson-btn:hover { color: var(--gold-light); box-shadow: inset 0 0 0 1px var(--gold-light), 0 0 16px rgba(201, 162, 39, 0.3); }
 
+/* 工具按钮 + 面板 */
+.tools-btn {
+  position: absolute;
+  left: 2.4vw;
+  bottom: 21.6vh;
+  padding: 0.45vh 0.7vw;
+  z-index: 9;
+  border: 0;
+  border-radius: 3px;
+  background: rgba(26, 15, 8, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.45);
+  color: rgba(232, 205, 122, 0.9);
+  font: inherit;
+  font-size: clamp(10px, 0.72vw, 14px);
+  letter-spacing: 0.14em;
+  cursor: pointer;
+  transition: box-shadow 0.25s, color 0.25s;
+}
+.tools-btn:hover { color: var(--gold-light); box-shadow: inset 0 0 0 1px var(--gold-light), 0 0 16px rgba(201, 162, 39, 0.3); }
+
+.tools-panel {
+  position: absolute;
+  left: 2.4vw;
+  bottom: 26vh;
+  width: min(24vw, 360px);
+  max-height: 58vh;
+  overflow: auto;
+  padding: 10px;
+  z-index: 20;
+  border-radius: 6px;
+  background: linear-gradient(180deg, rgba(30, 17, 9, 0.97), rgba(16, 9, 4, 0.98));
+  box-shadow:
+    inset 0 0 0 1px rgba(201, 162, 39, 0.45),
+    0 18px 50px rgba(0, 0, 0, 0.65);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition: opacity 0.22s, transform 0.22s, visibility 0.22s;
+}
+.tools-panel.is-on {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.tools-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.22);
+  font-size: clamp(11px, 0.78vw, 15px);
+  letter-spacing: 0.16em;
+  color: var(--gold-light);
+}
+.tools-head button {
+  border: 0;
+  background: none;
+  color: rgba(226, 208, 176, 0.6);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.tools-head button:hover { color: #fff; }
+
+.tools-panel > button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  margin-bottom: 4px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f2e6cd;
+  font: inherit;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.tools-panel > button:hover { background: rgba(201, 162, 39, 0.18); }
+.tools-panel > button b {
+  display: block;
+  font-weight: 400;
+  font-size: clamp(11px, 0.8vw, 15px);
+  letter-spacing: 0.08em;
+  color: var(--gold-light);
+}
+.tools-panel > button span {
+  display: block;
+  margin-top: 2px;
+  font-size: clamp(9px, 0.64vw, 12px);
+  line-height: 1.45;
+  color: rgba(226, 208, 176, 0.6);
+}
+.tools-panel > button.is-on {
+  background: rgba(176, 42, 26, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(232, 205, 122, 0.6);
+}
+.tools-foot {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(201, 162, 39, 0.16);
+  font-size: clamp(9px, 0.6vw, 11px);
+  color: rgba(214, 184, 138, 0.45);
+  text-align: center;
+}
+
 /* 识别到的姿态 */
 .posture {
   position: absolute;

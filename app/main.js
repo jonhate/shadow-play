@@ -64,6 +64,7 @@ async function boot() {
   // 那是浏览器一定会弹授权框的唯一时机。点右下角卡片也可以直接申请。
   const wantManual = params.get('manual') === '1';
   const debug = params.get('debug') === '1';
+  let debugOn = debug; // 运行时可被「工具 → 诊断面板」切换
   let manualMode = wantManual;
   let cameraError = null;
   let awaitingCamera = !wantManual; // 还没申请过摄像头
@@ -317,6 +318,95 @@ async function boot() {
     ui.setMusicToggle(on);
     if (on) audio.startBgm(show.scene ? show.scene.id : 'attract');
   });
+
+  // ---- 工具面板：给不懂技术的人用，所有自检与模式切换都收在这
+  const toolsPanel = document.getElementById('tools-panel');
+  const setTools = (on) => toolsPanel?.classList.toggle('is-on', on);
+  document.getElementById('tools-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setTools(!toolsPanel.classList.contains('is-on'));
+  });
+  document.getElementById('tools-close')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    setTools(false);
+  });
+
+  const withParam = (kv) => {
+    const p = new URLSearchParams(location.search);
+    for (const [k, v] of Object.entries(kv)) p.set(k, v);
+    return `${location.pathname}?${p.toString()}`;
+  };
+
+  toolsPanel?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-tool]');
+    if (!btn) return;
+    e.stopPropagation();
+    const tool = btn.dataset.tool;
+    switch (tool) {
+      case 'camtest':
+        window.open('./camtest.html', '_blank');
+        break;
+      case 'audiotest':
+        window.open('./audiotest.html', '_blank');
+        break;
+      case 'debug': {
+        const on = !document.body.classList.contains('debug');
+        debugOn = on;
+        document.body.classList.toggle('debug', on);
+        ui.setDebugVisible(on);
+        btn.classList.toggle('is-on', on);
+        ui.toast(on ? '诊断面板已打开' : '诊断面板已关闭', 1600);
+        break;
+      }
+      case 'fullscreen':
+        if (document.fullscreenElement) document.exitFullscreen?.();
+        else document.documentElement.requestFullscreen?.().catch(() => {});
+        break;
+      case 'kiosk':
+        location.href = withParam({ kiosk: '1' });
+        break;
+      case 'duo':
+        location.href = withParam({ duo: '1' });
+        break;
+      case 'finger': {
+        show.fingerMode = !show.fingerMode;
+        btn.classList.toggle('is-on', show.fingerMode);
+        document.body.classList.toggle('finger-mode', show.fingerMode);
+        ui.toast(show.fingerMode ? '手指模式：捏住＝执签，搓动＝转腕' : '已回到基础模式', 2600);
+        if (show.fingerMode) {
+          let done = false;
+          try {
+            done = sessionStorage.getItem(show.lessonKey) === 'done';
+          } catch (err) {
+            /* ignore */
+          }
+          if (!done) show.startTutorial();
+        }
+        break;
+      }
+      case 'lesson':
+        show.startTutorial();
+        setTools(false);
+        break;
+      case 'guide':
+        ui.toggleHelp();
+        break;
+      case 'reset':
+        try {
+          ['shadowplay:lesson', 'shadowplay:lesson:finger', 'shadowplay:bgm'].forEach((k) => {
+            sessionStorage.removeItem(k);
+            localStorage.removeItem(k);
+          });
+        } catch (err) {
+          /* ignore */
+        }
+        ui.toast('已清除记忆，正在重载…', 1600);
+        setTimeout(() => location.reload(), 700);
+        break;
+      default:
+        break;
+    }
+  });
   window.addEventListener('keydown', (e) => {
     manual.moved = true;
     if (e.code === 'Space') {
@@ -429,7 +519,7 @@ async function boot() {
       ui.setFps(fps);
       frames = 0;
       acc = 0;
-      if (debug) updateDebug(fps);
+      if (debugOn) updateDebug(fps);
     }
     requestAnimationFrame(loop);
   };
