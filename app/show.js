@@ -1,4 +1,4 @@
-import { clamp, lerp } from './rig.js';
+import { clamp, lerp, wrapPi } from './rig.js';
 
 /** 剧目：六出戏。每出可以带 beats（剧情节拍），节拍里能要求观众做某个动作才继续。 */
 export const SCENES = [
@@ -313,6 +313,7 @@ export class Show {
     this.lastPosture = null;
     this.swingLatch = 0; // 甩袖是瞬时动作，检测到后保持 0.5 秒
     this.cueHideUntil = 0; // 刚过一拍时短暂隐藏提示条
+    this.rollZero = { left: null, right: null }; // 捏住那一刻的掌面角，作为转腕零点
     this.postureTimer = 0;
     this.prevPalmX = null;
     // 自动演绎
@@ -560,17 +561,28 @@ export class Show {
       if (!h || h.age > 0.35) continue;
       if (this.fingerMode) {
         // ---- 方案一：捏合即执签。拇指-食指捏住 = 签被夹住 → 手臂跟"握点"走；
-        //      松开 = 放签 → 手臂自然垂落。搓动角驱动转腕。
+        //      松开 = 放签 → 手臂自然垂落。
+        //      转腕用"相对角度"：握住那一刻的角度当零点，之后只算转动量，
+        //      这样手举高、掌面转向都不会让皮影手腕乱转。
         const gripped = h.pinch != null && h.pinch < this.gripThreshold;
         const pt = h.pinchPoint || h.palm;
         const mode = this.handMode(h);
+        if (gripped) {
+          if (this.rollZero[side] == null) this.rollZero[side] = h.roll || 0;
+        } else {
+          this.rollZero[side] = null;
+        }
+        const relRoll =
+          gripped && this.rollZero[side] != null
+            ? clamp(wrapPi((h.roll || 0) - this.rollZero[side]), -1.2, 1.2)
+            : 0;
         p[side] = {
           stage: this.handToStage({ palm: pt }),
           // fist 仍然取手势分类：手指模式里"双拳定格"这类全局动作还要能用
           fist: mode === 'fist',
           open: gripped, // 手指模式里 open = 捏住（驱动手臂用）
           released: !gripped,
-          roll: h.roll || 0,
+          roll: relRoll,
           pinch: h.pinch,
           vx: h.vx,
           vy: h.vy,
@@ -1035,7 +1047,9 @@ export class Show {
       puppet.setHeld(armSide, false);
       if (hand.open) puppet.setHandTarget(armSide, hand.stage, { weight: 1 });
       else puppet.clearHandTarget(armSide);
-      const r = (hand.roll || 0) * this.rollScale;
+      // 转腕只在"握着签、且不在亮相"时生效；亮相时手腕要稳稳举起来
+      const applying = hand.open && this.posture !== 'flourish';
+      const r = applying ? (hand.roll || 0) * this.rollScale : null;
       if (armSide === 'left') puppet.rollL = r;
       else puppet.rollR = r;
     } else {
@@ -1146,7 +1160,8 @@ export class Show {
             lead.setHeld(armSide, false);
             lead.clearHandTarget(armSide);
           }
-          const r = (h.roll || 0) * this.rollScale;
+          const applying = h.open && this.posture !== 'flourish';
+          const r = applying ? (h.roll || 0) * this.rollScale : null;
           if (armSide === 'left') rollL = r;
           else rollR = r;
           continue;

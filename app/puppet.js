@@ -281,7 +281,8 @@ export class Puppet {
       // ---- 转腕（搓签）：把手指的搓动角加到手掌部件上
       const roll = side === 'left' ? ctx.rollL : ctx.rollR;
       if (arm.hand) {
-        const target = roll == null ? 0 : roll;
+        // 限幅：真实搓签也就 ±40° 左右，别让它转成风车
+        const target = roll == null ? 0 : clamp(roll, -0.7, 0.7);
         const prevRoll = this.wristRoll[side] || 0;
         const next = prevRoll + wrapPi(target - prevRoll) * (1 - Math.exp(-10 * dt));
         this.wristRoll[side] = next;

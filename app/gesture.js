@@ -249,8 +249,10 @@ function handMetrics(lm, size) {
   const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
   const pinchPoint = mid(lm[4], lm[8]); // 拇指尖与食指尖的中点 = 一根签的"握点"
   const gripPoint = mid(lm[4], lm[20]); // 拇指尖与小指尖的中点 = 另一根签
-  // 搓动角：拇指→食指这条边的方向。搓签时它会转，用来驱动"转腕"
-  const roll = Math.atan2(lm[8].y - lm[4].y, lm[8].x - lm[4].x);
+  // 搓动角：用食指根(5)到小指根(17)这条线。
+  // 不能用"拇指尖→食指尖"——捏住时两指尖几乎重合，向量长度趋近 0，角度会乱跳；
+  // 掌指关节这条基线长、稳定，能真实反映手腕的转动。
+  const roll = Math.atan2(lm[17].y - lm[5].y, lm[17].x - lm[5].x);
 
   return {
     openness,
