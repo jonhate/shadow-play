@@ -319,6 +319,7 @@ export class Show {
     this.beatHold = 0;
     this.posture = null; // 'bow' | 'flourish' | 'swing' | null
     this.lastPosture = null;
+    this.swingLatch = 0; // 甩袖是瞬时动作，检测到后保持 0.5 秒
     this.postureTimer = 0;
     this.prevPalmX = null;
     // 自动演绎
@@ -631,11 +632,14 @@ export class Show {
       const lh = L.hand.palm || L.hand;
       const rh = R.hand.palm || R.hand;
       pairDist = Math.hypot(lh.x - rh.x, lh.y - rh.y);
-      // 两手横向速度同向且够快 → 一起挥（走路/甩袖）
+      // 两手横向速度同向且够快 → 一起挥（甩袖）
+      // 注意单位：vx 是「每秒多少个画面宽度」，快甩约 1~2，慢移约 0.2~0.4。
+      // 旧版按「像素/秒」写成 260 / 1400，真实挥手永远达不到，只有识别抖动才会偶尔触发。
       const vl = L.hand.vx || 0;
       const vr = R.hand.vx || 0;
-      if (vl * vr > 0 && Math.abs(vl) + Math.abs(vr) > 260) {
-        sameDir = Math.sign(vl) * Math.min(1, (Math.abs(vl) + Math.abs(vr)) / 1400);
+      const sum = Math.abs(vl) + Math.abs(vr);
+      if (vl * vr > 0 && sum > 0.8) {
+        sameDir = Math.sign(vl) * Math.min(1, sum / 2.2);
       }
     }
     const hv = (p) => (p ? (p.hand ? p.hand.vx || 0 : p.vx || 0) : 0);
@@ -677,7 +681,12 @@ export class Show {
     const input = this.gatherInput(dt, now);
     if (input.count > 0) this.lastHandsTime = this.clock;
     const sinceHands = this.clock - this.lastHandsTime;
-    this.posture = this.detectPosture(input);
+    const rawPosture = this.detectPosture(input);
+    // 甩袖是个"瞬时"动作：检测到就把它保持 0.5 秒，
+    // 否则挥手那一两帧过去就没了，剧情节拍（需要保持 0.45 秒）永远凑不满。
+    if (rawPosture === 'swing') this.swingLatch = 0.5;
+    else if (this.swingLatch > 0) this.swingLatch = Math.max(0, this.swingLatch - dt);
+    this.posture = rawPosture || (this.swingLatch > 0 ? 'swing' : null);
     // 认出动作就“响一下”，手上和耳朵上都有反馈
     if (this.posture && this.posture !== this.lastPosture && this.state !== STATE.ATTRACT) {
       this.audio?.cueSfx?.(this.posture);
@@ -904,12 +913,17 @@ export class Show {
         {
           bow: '两手捏住 · 靠近作揖',
           raise: '捏住举高 · 亮相',
-          swing: '两手同挥 · 甩袖',
+          swing: '两手同向快甩 · 甩袖',
           fist: '双手握拳 · 定格',
         }[cue] || ''
       );
     }
-    return { bow: '两手一合 · 作揖', raise: '双手举高 · 亮相', swing: '双手同挥 · 甩袖', fist: '双手握拳 · 定格' }[cue] || '';
+    return {
+      bow: '两手一合 · 作揖',
+      raise: '双手举高 · 亮相',
+      swing: '两手同向快甩 · 甩袖',
+      fist: '双手握拳 · 定格',
+    }[cue] || '';
   }
 
   updateBeats(dt, input) {
