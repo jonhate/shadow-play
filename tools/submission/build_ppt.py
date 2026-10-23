@@ -180,7 +180,15 @@ bar(s, 0.95, 3.85, 1.8, 0.06)
 text(s, 0.9, 4.15, 5.8, 1.2,
      ["举起双手，皮影跟着你动；",
       "做出动作，戏才往下演。"], size=20, color=GOLD, spacing=1.5)
-text(s, 0.9, 6.45, 5.8, 0.5, ["浏览器端互动展项 · 无需安装 · 单个摄像头"], size=12, color=DIM)
+text(s, 0.9, 6.15, 5.9, 0.5, ["浏览器端互动展项 · 无需安装 · 单个摄像头"], size=12, color=DIM)
+urlbox = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(0.9), Inches(6.62), Inches(5.9), Inches(0.52))
+urlbox.fill.solid()
+urlbox.fill.fore_color.rgb = GOLD
+urlbox.line.fill.background()
+urlbox.shadow.inherit = False
+fill_alpha(urlbox, 0.16)
+text(s, 1.05, 6.72, 5.7, 0.4, ["在线演示　jonhate.github.io/shadow-play"], size=13, color=GOLD, bold=True)
+
 
 
 # ---------------------------------------------------------------- 2 问题
@@ -327,7 +335,9 @@ rows = [
     ["可回归", "一键脚本验证 25 个节拍 / 两套教学关 / 谢幕 / 三档皮 / 六种模式"],
 ]
 table(s, 0.85, 2.2, 6.2, 3.6, rows, col_w=[1.9, 4.3], size=11.5)
-text(s, 0.85, 6.0, 6.2, 0.9, ["单文件部署，普通办公机 + 一个 USB 摄像头即可"], size=12.5, color=DIM)
+text(s, 0.85, 5.95, 6.2, 1.1,
+     [("单文件部署：普通办公机 + 一个 USB 摄像头即可", 12.5, False, DIM),
+      ("在线演示：jonhate.github.io/shadow-play", 12.5, True, GOLD)], spacing=1.5)
 
 # ---------------------------------------------------------------- 11 原创贡献与 AI
 s = prs.slides.add_slide(BLANK)
@@ -374,10 +384,19 @@ ov2.fill.fore_color.rgb = BG
 ov2.line.fill.background()
 ov2.shadow.inherit = False
 fill_alpha(ov2, 0.34)
-text(s, 0, 2.5, W, 1.0, ["掌中戲 · 手势皮影"], size=44, color=TEXT, bold=True, align=PP_ALIGN.CENTER)
-bar(s, W / 2 - 1.1, 3.65, 2.2, 0.06)
-text(s, 0, 3.95, W, 0.6, ["一盏灯，一张皮，一双手"], size=20, color=GOLD, align=PP_ALIGN.CENTER)
-text(s, 0, 5.4, W, 0.5, ["源代码、运行程序与在线演示可应评审要求提供"], size=12, color=DIM, align=PP_ALIGN.CENTER)
+text(s, 0, 2.35, W, 1.0, ["掌中戲 · 手势皮影"], size=44, color=TEXT, bold=True, align=PP_ALIGN.CENTER)
+bar(s, W / 2 - 1.1, 3.5, 2.2, 0.06)
+text(s, 0, 3.8, W, 0.6, ["一盏灯，一张皮，一双手"], size=20, color=GOLD, align=PP_ALIGN.CENTER)
+qbox = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(W / 2 - 3.4), Inches(4.85), Inches(6.8), Inches(0.95))
+qbox.fill.solid()
+qbox.fill.fore_color.rgb = GOLD
+qbox.line.fill.background()
+qbox.shadow.inherit = False
+fill_alpha(qbox, 0.16)
+text(s, 0, 4.95, W, 0.4, ["在线试玩"], size=12, color=DIM, align=PP_ALIGN.CENTER)
+text(s, 0, 5.25, W, 0.5, ["https://jonhate.github.io/shadow-play/"], size=19, color=GOLD, bold=True, align=PP_ALIGN.CENTER)
+text(s, 0, 6.25, W, 0.5, ["浏览器打开 → 点击页面并允许摄像头 → 跟随教学关即可上手；首次加载约 10–20 秒"],
+     size=12, color=DIM, align=PP_ALIGN.CENTER)
 
 prs.save(OUT)
 print("PPT 已生成：", OUT, "共", len(prs.slides.__iter__.__self__._sldIdLst), "页")
