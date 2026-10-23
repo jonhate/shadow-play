@@ -241,10 +241,14 @@ export const LESSON_FINGER = [
   },
   {
     id: 'f-bow',
-    title: '两手靠近，作揖',
-    tip: '两只手合到一拃宽就行——这就是作揖。剧情要靠它往下走一句',
+    title: '作揖：两手靠近，或一起下压',
+    tip: '捏着签也能做——两只手一起往下沉就是躬身作揖；两手合到一拃宽也算。剧情靠它往下走一句',
     hold: 0.8,
-    test: (input) => !!(input.a.left && input.a.right && input.pairDist != null && input.pairDist < 0.18),
+    test: (input) =>
+      !!(
+        (input.a.left && input.a.right && input.pairDist != null && input.pairDist < 0.18) ||
+        input.bothDown
+      ),
   },
   {
     id: 'f-walk',
@@ -651,6 +655,13 @@ export class Show {
     }
     const hv = (p) => (p ? (p.hand ? p.hand.vx || 0 : p.vx || 0) : 0);
     sway = Math.max(Math.abs(hv(L)), Math.abs(hv(R)));
+    // 两手一起向下沉（躬身）。作揖的第二条路：
+    // 手指模式下两只手都在捏着签，把两手合拢既别扭、又会让检测丢手，
+    // 所以"一起下压"也必须能作揖。
+    const vv = (p) => (p ? (p.hand ? p.hand.vy || 0 : p.vy || 0) : 0);
+    const downL = vv(L);
+    const downR = vv(R);
+    const bothDown = !!(L && R && downL > 0.45 && downR > 0.45);
 
     const bothRaised = !!(L && R) && L.stage.y > 200 && R.stage.y > 200;
 
@@ -664,6 +675,7 @@ export class Show {
       anyFist: !!(players[0].left?.fist || players[0].right?.fist),
       bothFist: !!(players[0].left?.fist && players[0].right?.fist),
       bothRaised,
+      bothDown,
       pairDist,
       sway,
       sameDir,
@@ -676,9 +688,10 @@ export class Show {
     const L = input.a.left;
     const R = input.a.right;
     if (input.bothRaised) return 'flourish'; // 亮相 / 腾云
-    // 作揖：两只手靠近。
-    // 手指模式下放宽——真实双手靠近时常常丢一只手的捏合判定，甚至丢手，
-    // 所以只要"两只手都在画面里 + 够近"就算作揖，不再强制两只都捏住。
+    // 作揖有两条路：
+    //   ① 两手靠近（基础模式常用）
+    //   ② 两手一起向下沉 = 躬身（手指模式捏着签时用这条，不会因为两手贴近丢手）
+    if (input.bothDown) return 'bow';
     const nearLimit = this.fingerMode ? 0.18 : 0.14;
     const near = input.pairDist != null && input.pairDist < nearLimit;
     if (near && L && R) {
@@ -925,7 +938,7 @@ export class Show {
     if (this.fingerMode) {
       return (
         {
-          bow: '两手靠近 · 作揖',
+          bow: '两手靠近 或 一起下压 · 作揖',
           raise: '捏住举高 · 亮相',
           swing: '两手同向快甩 · 甩袖',
           fist: '双手握拳 · 定格',
