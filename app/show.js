@@ -241,18 +241,10 @@ export const LESSON_FINGER = [
   },
   {
     id: 'f-bow',
-    title: '两手捏住，靠近作揖',
-    tip: '两只手都捏住，再合到一拃宽——这就是作揖。剧情要靠它往下走一句',
+    title: '两手靠近，作揖',
+    tip: '两只手合到一拃宽就行——这就是作揖。剧情要靠它往下走一句',
     hold: 0.8,
-    test: (input) =>
-      !!(
-        input.a.left &&
-        input.a.right &&
-        input.a.left.open &&
-        input.a.right.open &&
-        input.pairDist != null &&
-        input.pairDist < 0.14
-      ),
+    test: (input) => !!(input.a.left && input.a.right && input.pairDist != null && input.pairDist < 0.18),
   },
   {
     id: 'f-walk',
@@ -320,6 +312,7 @@ export class Show {
     this.posture = null; // 'bow' | 'flourish' | 'swing' | null
     this.lastPosture = null;
     this.swingLatch = 0; // 甩袖是瞬时动作，检测到后保持 0.5 秒
+    this.cueHideUntil = 0; // 刚过一拍时短暂隐藏提示条
     this.postureTimer = 0;
     this.prevPalmX = null;
     // 自动演绎
@@ -338,6 +331,8 @@ export class Show {
     this.stateTime = 0;
     this.ui?.setState(next);
     if (next !== STATE.ATTRACT) this.ui?.setProgress(0);
+    // 离开"开演"就把剧情提示收起来（定格/教学/待客都不该留着黄框）
+    if (next !== STATE.PLAY) this.ui?.setCue(null);
     if (next === STATE.PLAY && prev !== STATE.PLAY) {
       // 刚换出目（beatIndex = -1）才从头讲故事；定格/教学结束后继续演
       if (this.beatIndex < 0) this.startBeats();
@@ -669,8 +664,15 @@ export class Show {
     const L = input.a.left;
     const R = input.a.right;
     if (input.bothRaised) return 'flourish'; // 亮相 / 腾云
-    if (L && R && L.open && R.open && input.pairDist != null && input.pairDist < 0.14) return 'bow'; // 作揖
-    if (Math.abs(input.sameDir) > 0.35) return 'swing'; // 甩袖 / 一起挥
+    // 作揖：两只手靠近。
+    // 手指模式下放宽——真实双手靠近时常常丢一只手的捏合判定，甚至丢手，
+    // 所以只要"两只手都在画面里 + 够近"就算作揖，不再强制两只都捏住。
+    const nearLimit = this.fingerMode ? 0.18 : 0.14;
+    const near = input.pairDist != null && input.pairDist < nearLimit;
+    if (near && L && R) {
+      if (this.fingerMode || (L.open && R.open)) return 'bow';
+    }
+    if (Math.abs(input.sameDir) > 0.35) return 'swing'; // 甩袖
     return null;
   }
 
@@ -911,7 +913,7 @@ export class Show {
     if (this.fingerMode) {
       return (
         {
-          bow: '两手捏住 · 靠近作揖',
+          bow: '两手靠近 · 作揖',
           raise: '捏住举高 · 亮相',
           swing: '两手同向快甩 · 甩袖',
           fist: '双手握拳 · 定格',
@@ -943,12 +945,24 @@ export class Show {
       (beat.cue === 'fist' && input.bothFist);
     // 一次动作只推进一步：动作不松开就不再计数
     if (!hit) this.cueLatch = false;
-    // 立刻反馈：认出来了就把提示变成「✓ 已认出」
-    this.ui?.setCue(this.cueText(beat.cue), hit && !this.cueLatch);
-    if (hit && this.cueLatch) return;
+    // 这一拍已经推进过，还保持着手势 → 提示条收起来，
+    // 否则观众一直保持作揖，框子就一直挂在那儿，看起来像"没消失"。
+    if (hit && this.cueLatch) {
+      this.ui?.setCue(null);
+      return;
+    }
+    // 刚过一拍：先让提示条消失 0.35 秒再显示下一句。
+    // 否则连着两句同文案（比如两次"作揖"）时，框子看起来像"没消失"。
+    if (this.clock < this.cueHideUntil) {
+      this.ui?.setCue(null);
+    } else {
+      // 立刻反馈：认出来了就把提示变成「✓ 已认出」
+      this.ui?.setCue(this.cueText(beat.cue), hit);
+    }
     this.beatHold = hit ? this.beatHold + dt : Math.max(0, this.beatHold - dt * 3);
     if (this.beatHold > 0.45) {
       this.cueLatch = true;
+      this.cueHideUntil = this.clock + 0.35;
       this.nextBeat();
     }
   }
