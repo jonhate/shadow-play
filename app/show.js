@@ -240,6 +240,21 @@ export const LESSON_FINGER = [
     test: (input) => !!(input.a.left?.open || input.a.right?.open),
   },
   {
+    id: 'f-bow',
+    title: '两手捏住，靠近作揖',
+    tip: '两只手都捏住，再合到一拃宽——这就是作揖。剧情要靠它往下走一句',
+    hold: 0.8,
+    test: (input) =>
+      !!(
+        input.a.left &&
+        input.a.right &&
+        input.a.left.open &&
+        input.a.right.open &&
+        input.pairDist != null &&
+        input.pairDist < 0.14
+      ),
+  },
+  {
     id: 'f-walk',
     title: '把手挪到左右',
     tip: '手移到画面左边或右边，皮影跟着走位；回到中间就站住',
@@ -552,10 +567,12 @@ export class Show {
         //      松开 = 放签 → 手臂自然垂落。搓动角驱动转腕。
         const gripped = h.pinch != null && h.pinch < this.gripThreshold;
         const pt = h.pinchPoint || h.palm;
+        const mode = this.handMode(h);
         p[side] = {
           stage: this.handToStage({ palm: pt }),
-          fist: false,
-          open: gripped,
+          // fist 仍然取手势分类：手指模式里"双拳定格"这类全局动作还要能用
+          fist: mode === 'fist',
+          open: gripped, // 手指模式里 open = 捏住（驱动手臂用）
           released: !gripped,
           roll: h.roll || 0,
           pinch: h.pinch,
@@ -881,6 +898,17 @@ export class Show {
   }
 
   cueText(cue) {
+    // 手指模式的提示要换说法，否则观众不知道"两手一合"在捏合模式下怎么做
+    if (this.fingerMode) {
+      return (
+        {
+          bow: '两手捏住 · 靠近作揖',
+          raise: '捏住举高 · 亮相',
+          swing: '两手同挥 · 甩袖',
+          fist: '双手握拳 · 定格',
+        }[cue] || ''
+      );
+    }
     return { bow: '两手一合 · 作揖', raise: '双手举高 · 亮相', swing: '双手同挥 · 甩袖', fist: '双手握拳 · 定格' }[cue] || '';
   }
 
@@ -992,8 +1020,12 @@ export class Show {
       }
     }
 
-    // 手掌左右移动 → 这个皮影跟着走（握拳时站住）
-    if (hand.fist) return 0;
+    // 手掌左右移动 → 这个皮影跟着走（握拳/松手时站住）
+    if (this.fingerMode) {
+      if (!hand.open) return 0; // 松开签就不走
+    } else if (hand.fist) {
+      return 0;
+    }
     const targetX = clamp(hand.stage.x * this.walkGain, -480, 480);
     const dx = targetX - puppet.x;
     if (Math.abs(dx) < 70) return 0; // 死区，免得手抖就乱走
