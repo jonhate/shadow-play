@@ -180,7 +180,9 @@ export class Puppet {
     const move = ctx.move || 0;
     this.walkAmount = lerp(this.walkAmount, Math.abs(move) > 0.08 ? 1 : 0, 1 - Math.exp(-6 * dt));
     this.walkPhase += dt * (2.6 + 2.4 * Math.abs(move)) * (this.walkAmount > 0.02 ? 1 : 0);
-    this.x = clamp(this.x + move * dt * 150, -620, 620);
+    // ---- 位移（舞台层）：只允许在"画卷"（影幕）内部走，边界由 Show 按 viewWidth 与皮影宽度算好
+    const limit = this.walkLimit ?? 620;
+    this.x = clamp(this.x + move * dt * 150, -limit, limit);
 
     // ---- 呼吸/待机（皮影挂在竹签上本来就会轻轻晃，但要慢、要小）
     const idle = ctx.idle ?? true;

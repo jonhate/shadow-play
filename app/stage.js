@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three/three.module.js';
 import { Puppet } from './puppet.js';
-import { A, buildRig } from './rig.js';
+import { A, buildRig, clamp } from './rig.js';
 
 /** 舞台：正交相机 + 灯箱影幕。背景交给 CSS/SVG，WebGL 只画皮影与景片。 */
 export class Stage {
@@ -150,6 +150,24 @@ export class Stage {
     const u = (clientX - r.left) / r.width;
     const v = (clientY - r.top) / r.height;
     return { x: (u - 0.5) * this.viewWidth, y: (0.5 - v) * this.viewHeight };
+  }
+
+  /**
+   * 影幕（画卷）内的可行走边界：皮影**中心**允许的最大 |x|。
+   * 依据是相机视野（viewWidth 映射到画布整宽）减去皮影自身半宽，
+   * 这样整只皮影都在画框里，不会走出画卷。随窗口比例变化自动重算。
+   */
+  walkLimitFor(rigBounds, scale, pad = 26) {
+    const halfW = ((rigBounds?.width || 0) * (scale || 0)) / 2;
+    return Math.max(60, this.viewWidth / 2 - halfW - pad);
+  }
+
+  /** 把舞台坐标夹进影幕内部（留给手臂目标点用，避免手伸到画框外） */
+  clampToScreen(x, y, pad = 18) {
+    return {
+      x: clamp(x, -this.viewWidth / 2 + pad, this.viewWidth / 2 - pad),
+      y: clamp(y, -this.viewHeight / 2 + pad, this.viewHeight / 2 - pad),
+    };
   }
 }
 

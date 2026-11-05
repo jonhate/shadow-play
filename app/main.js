@@ -43,20 +43,41 @@ async function boot() {
 
   const catalog = await fetch('./puppets/index.json').then((r) => r.json());
   const assets = {};
-  let done = 0;
+  const loadAsset = (item) => loadWoop(`./puppets/${item.file}`, item);
+
+  // 首屏只等第一出戏要用的皮影（原来是把 15 个资产全部串行下完才开演，
+  // 弱网下要多花十几秒）；其余资产在开演后后台补齐，切出目不会卡。
+  const firstNames = new Set();
+  for (const p of SCENES[0].props || []) if (p.asset) firstNames.add(p.asset);
+  for (const c of SCENES[0].cast || []) if (c.asset) firstNames.add(c.asset);
+  const firstBatch = catalog.filter((x) => firstNames.has(x.name));
+
   ui.setLoading(0.02, '正在请出皮影…');
-  for (const item of catalog) {
+  for (let i = 0; i < firstBatch.length; i += 1) {
+    const item = firstBatch[i];
     try {
-      assets[item.name] = await loadWoop(`./puppets/${item.file}`, item);
+      assets[item.name] = await loadAsset(item);
     } catch (err) {
       console.warn('[boot] 资产加载失败', item.name, err);
     }
-    done += 1;
-    ui.setLoading((done / catalog.length) * 0.55, `装台：${item.name}`);
+    ui.setLoading(((i + 1) / Math.max(1, firstBatch.length)) * 0.5, `装台：${item.name}`);
   }
 
-  const show = new Show({ stage, ui, audio, catalog, assets });
+  const show = new Show({ stage, ui, audio, catalog, assets, loadAsset });
   await show.start();
+
+  // 后台把剩下的皮影补进来（不阻塞开演；切出目时 ensureAssets 也会兜底）
+  (async () => {
+    for (const item of catalog) {
+      if (assets[item.name]) continue;
+      try {
+        assets[item.name] = await loadAsset(item);
+      } catch (err) {
+        console.warn('[boot] 资产加载失败', item.name, err);
+      }
+    }
+  })();
+
   ui.setLoading(0.62, '正在燃灯…');
 
   // ---- 摄像头：不在页面加载时申请（浏览器对“无手势的申请”经常静默拒绝）。

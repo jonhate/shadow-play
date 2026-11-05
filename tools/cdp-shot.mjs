@@ -25,6 +25,8 @@ const args = [
   '--hide-scrollbars',
   `--window-size=${process.env.WIN_SIZE || '1920,1080'}`,
   '--force-device-scale-factor=1',
+  // 系统代理挂掉时用它：NO_PROXY=1 node tools/cdp-shot.mjs <线上地址>
+  ...(process.env.NO_PROXY ? ['--no-proxy-server'] : []),
   ...(process.env.FAKE_CAM
     ? [
         '--use-fake-device-for-media-stream',

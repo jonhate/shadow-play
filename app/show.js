@@ -262,12 +262,13 @@ export const LESSON_FINGER = [
 
 
 export class Show {
-  constructor({ stage, ui, audio, catalog, assets }) {
+  constructor({ stage, ui, audio, catalog, assets, loadAsset }) {
     this.stage = stage;
     this.ui = ui;
     this.audio = audio;
     this.catalog = catalog; // 资产索引
-    this.assets = assets; // 名称 → 已解析的 woop 数据
+    this.assets = assets; // 名称 → 已解析的 woop 数据（按出目懒加载）
+    this.loadAsset = loadAsset || null; // 缺资产时的加载器（由 boot 注入）
     this.state = STATE.ATTRACT;
     this.sceneIndex = 0;
     this.scene = null;
@@ -355,8 +356,28 @@ export class Show {
     if (next === STATE.FREEZE) this.audio?.gong(0.85);
   }
 
+  /** 只加载这一出需要的皮影/景片（首屏不必等 15 个资产全部下载完） */
+  async ensureAssets(scene) {
+    if (!this.loadAsset) return;
+    const names = new Set();
+    for (const p of scene.props || []) if (p.asset) names.add(p.asset);
+    for (const c of scene.cast || []) if (c.asset) names.add(c.asset);
+    const missing = [...names].filter((n) => !this.assets[n]);
+    if (!missing.length) return;
+    for (const name of missing) {
+      const item = (this.catalog || []).find((x) => x.name === name);
+      if (!item) continue;
+      try {
+        this.assets[name] = await this.loadAsset(item);
+      } catch (err) {
+        console.warn('[show] 资产加载失败', name, err);
+      }
+    }
+  }
+
   async loadScene(index, { silent = false } = {}) {
     const scene = SCENES[index % SCENES.length];
+    await this.ensureAssets(scene);
     this.sceneIndex = index % SCENES.length;
     this.scene = scene;
     this.stage.clear();
@@ -385,6 +406,10 @@ export class Show {
       });
       // 主角近黑（灯箱剪影），配角稍浅，拉开前后层次
       puppet.setTint(c.lead ? 0x1a1108 : 0x3a2718);
+      // 走位边界：整只皮影都要留在画卷里（按当前视野与皮影实际宽度算）
+      puppet.walkLimit = this.stage.walkLimitFor
+        ? this.stage.walkLimitFor(puppet.rig.bounds, puppet.rootPose.scale)
+        : null;
       if (this.skin !== 'silhouette') puppet.setSkin(this.skin);
       if (c.lead || !this.lead) this.lead = puppet;
       else this.support = puppet;
@@ -1052,13 +1077,15 @@ export class Show {
   drivePuppetWithHand(puppet, hand, screenSide) {
     const armSide = this.armSideFor(puppet, screenSide);
     const other = armSide === 'left' ? 'right' : 'left';
+    // 手的目标点也夹在影幕内：手移到画框外时，皮影的手停在框边，不会伸到画卷外面
+    const aim = this.stage.clampToScreen ? this.stage.clampToScreen(hand.stage.x, hand.stage.y) : hand.stage;
     // 每只手只管这个皮影的一侧，另一侧自然垂落
     puppet.setHeld(other, false);
     puppet.clearHandTarget(other);
 
     if (this.fingerMode) {
       puppet.setHeld(armSide, false);
-      if (hand.open) puppet.setHandTarget(armSide, hand.stage, { weight: 1 });
+      if (hand.open) puppet.setHandTarget(armSide, aim, { weight: 1 });
       else puppet.clearHandTarget(armSide);
       // 转腕只在"握着签、且不在亮相"时生效；亮相时手腕要稳稳举起来
       const applying = hand.open && this.posture !== 'flourish';
@@ -1071,7 +1098,7 @@ export class Show {
       if (hand.fist) {
         if (!wasHeld) this.audio?.cueSfx?.('hold');
       } else if (hand.open) {
-        puppet.setHandTarget(armSide, hand.stage, { weight: 1 });
+        puppet.setHandTarget(armSide, aim, { weight: 1 });
       }
     }
 
@@ -1081,7 +1108,9 @@ export class Show {
     } else if (hand.fist) {
       return 0;
     }
-    const targetX = clamp(hand.stage.x * this.walkGain, -480, 480);
+    // 目标也限制在画卷内：手移出画框也不会把皮影拽出去
+    const limit = puppet.walkLimit ?? 480;
+    const targetX = clamp(hand.stage.x * this.walkGain, -limit, limit);
     const dx = targetX - puppet.x;
     if (Math.abs(dx) < 70) return 0; // 死区，免得手抖就乱走
     return clamp(dx / 130, -0.95, 0.95);
@@ -1090,6 +1119,15 @@ export class Show {
   updatePuppets(dt, input) {
     const lead = this.lead;
     if (!lead) return;
+    // 窗口比例变化（16:9 / 4:3 / 全屏切换）时重算走位边界，保证皮影始终在画卷内
+    if (this._lastViewW !== this.stage.viewWidth) {
+      this._lastViewW = this.stage.viewWidth;
+      for (const p of [lead, this.support]) {
+        if (p && this.stage.walkLimitFor) {
+          p.walkLimit = this.stage.walkLimitFor(p.rig.bounds, p.rootPose.scale);
+        }
+      }
+    }
     const playing =
       this.state === STATE.PLAY || this.state === STATE.FREEZE || this.state === STATE.TUTORIAL;
     const idle = this.state === STATE.ATTRACT || this.state === STATE.ENDING;
@@ -1202,7 +1240,8 @@ export class Show {
         else if (L) cx = L.stage.x;
         else if (R) cx = R.stage.x;
         if (cx != null && !anyFist) {
-          const targetX = clamp(cx * 0.6, -430, 430);
+          const lim = lead.walkLimit ?? 430;
+          const targetX = clamp(cx * 0.6, -lim, lim);
           const dx = targetX - lead.x;
           // 死区：手只是稍微偏一点不算“要走”，免得抬手就把人带跑
           move = Math.abs(dx) < 130 ? 0 : clamp(dx / 150, -0.9, 0.9);
@@ -1223,14 +1262,15 @@ export class Show {
       1 - Math.exp(-8 * dt),
     );
 
-    // 走到台边就回身
+    // 走到画卷边上就回身（阈值跟着各自动的可行走边界走）
     if (!auto) {
-      if (lead.x > 330) lead.setFacing(-1);
-      else if (lead.x < -330) lead.setFacing(1);
-      if (this.support) {
-        if (this.support.x > 330) this.support.setFacing(-1);
-        else if (this.support.x < -330) this.support.setFacing(1);
-      }
+      const turn = (p) => {
+        const lim = (p.walkLimit ?? 620) * 0.85;
+        if (p.x > lim) p.setFacing(-1);
+        else if (p.x < -lim) p.setFacing(1);
+      };
+      turn(lead);
+      if (this.support) turn(this.support);
     }
 
     lead.update(dt, {
