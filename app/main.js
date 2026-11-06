@@ -41,9 +41,33 @@ async function boot() {
   const duo = params.get('duo') === '1';
   const gesture = new GestureInput(video, { numHands: duo ? 4 : 2 });
 
-  const catalog = await fetch('./puppets/index.json').then((r) => r.json());
+  // ---- 资源前缀：把"大文件"（皮影/模型/wasm）放到国内对象存储或 CDN 上，
+  // 页面本身仍然在 GitHub Pages，评委点的网址一个字都不用改。
+  // 用法：①把 puppets/ models/ vendor/mediapipe/wasm/ 传到 OSS/COS，开公共读 + CORS；
+  //       ②把下面这行改成你的地址（结尾不要带斜杠），例如
+  //          const ASSET_BASE_DEFAULT = 'https://your-bucket.oss-cn-hangzhou.aliyuncs.com/shadow-play';
+  //       ③临时验证可用 ?assets=https://... 覆盖，?assets=0 强制走同源。
+  const ASSET_BASE_DEFAULT = '';
+  const assetsParam = params.get('assets');
+  let ASSET_BASE =
+    assetsParam === '0' ? '' : assetsParam ? assetsParam.replace(/\/$/, '') : ASSET_BASE_DEFAULT;
+  const assetUrl = (p) => (ASSET_BASE ? `${ASSET_BASE}/${String(p).replace(/^\.?\//, '')}` : `./${String(p).replace(/^\.?\//, '')}`);
+
+  // 资源索引：优先走 ASSET_BASE（国内存储/CDN）；连不上或没配 CORS 就自动回退同源，
+  // 绝不因为"加速"把整站搞成白屏。
+  let catalog;
+  try {
+    const r = await fetch(assetUrl('puppets/index.json'));
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    catalog = await r.json();
+  } catch (err) {
+    if (!ASSET_BASE) throw err;
+    console.warn('[boot] 资源前缀不可用，回退同源（检查对象存储的 CORS 是否允许本站）', err);
+    ASSET_BASE = '';
+    catalog = await fetch('./puppets/index.json').then((r) => r.json());
+  }
   const assets = {};
-  const loadAsset = (item) => loadWoop(`./puppets/${item.file}`, item);
+  const loadAsset = (item) => loadWoop(assetUrl(`puppets/${item.file}`), item);
 
   // 首屏只等第一出戏要用的皮影（原来是把 15 个资产全部串行下完才开演，
   // 弱网下要多花十几秒）；其余资产在开演后后台补齐，切出目不会卡。
@@ -100,8 +124,8 @@ async function boot() {
     if (manualMode) return (modelPromise = Promise.resolve());
     modelPromise = gesture
       .loadModel({
-        modelPath: './models/gesture_recognizer.task',
-        wasmPath: './vendor/mediapipe/wasm',
+        modelPath: assetUrl('models/gesture_recognizer.task'),
+        wasmPath: assetUrl('vendor/mediapipe/wasm'),
       })
       .catch((err) => {
         console.warn('[boot] 手势模型加载失败', err);
