@@ -172,6 +172,8 @@
         <canvas id="lm" width="240" height="135"></canvas>
         <div class="camera-fallback" id="camera-fallback">摄像头未启用</div>
         <div class="camera-label">手势识别</div>
+        <!-- 兜底入口：没摄像头 / 网络慢 / 不想授权，都能直接玩 -->
+        <button class="mouse-demo" id="mouse-demo" type="button">没有摄像头？用鼠标试玩</button>
       </div>
 
       <!-- 鼠标开关（就在镜头框上面）：不想要鼠标兜底就关掉 -->

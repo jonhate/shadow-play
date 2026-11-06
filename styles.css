@@ -732,6 +732,29 @@ body.finger-mode #app[data-state='attract'] .hint[data-hint='wake'] {
 .camera-card.is-error video,
 .camera-card.is-error canvas { opacity: 0; }
 
+/* 兜底入口：没摄像头 / 网络慢 / 不想授权，都能直接玩 */
+.mouse-demo {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: none;
+  padding: 3px 8px;
+  border: 0;
+  border-radius: 3px;
+  background: rgba(201, 162, 39, 0.9);
+  color: #1a1108;
+  font: inherit;
+  font-size: clamp(9px, 0.6vw, 12px);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  cursor: pointer;
+  z-index: 3;
+}
+.mouse-demo:hover { background: #f0d98d; }
+.camera-card.is-ask .mouse-demo,
+.camera-card.is-error .mouse-demo { display: block; }
+
 /* 邀请开摄像头：金色呼吸框，提示这是按钮 */
 .camera-card.is-ask {
   opacity: 1;

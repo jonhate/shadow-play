@@ -574,6 +574,11 @@ export class Audio {
   /** 把台词 mp3 解码进内存（一次性，31 句约 0.6MB） */
   async preloadLines() {
     if (!this.available || this.available.size === 0) return;
+    // 台词配音默认关闭（有戏剧原声时不需要），那就别下载这 31 个文件——
+    // 首屏带宽留给画幕和 BGM。想用配音（?voice=1，会置 forceVoice）时才预取。
+    const hasBgm = !!(this.bgmFiles && this.bgmFiles.size > 0);
+    if (!this.voiceEnabled) return;
+    if (hasBgm && !this.forceVoice) return;
     const ctx = this.ensure();
     if (!ctx) return; // 还没解锁，等 unlock() 再调
     if (this.preloading) return;

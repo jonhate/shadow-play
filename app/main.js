@@ -90,19 +90,28 @@ async function boot() {
   let cameraError = null;
   let awaitingCamera = !wantManual; // 还没申请过摄像头
 
-  const modelPromise = wantManual
-    ? Promise.resolve()
-    : gesture
-        .loadModel({
-          modelPath: './models/gesture_recognizer.task',
-          wasmPath: './vendor/mediapipe/wasm',
-        })
-        .catch((err) => {
-          console.warn('[boot] 手势模型加载失败', err);
-          const e = new Error((err && err.message) || '手势模型加载失败');
-          e.name = 'ModelError';
-          cameraError = cameraError || e;
-        });
+  // 手势模型（8.2MB→gzip 6.4MB）+ wasm（13.2MB→gzip 4MB）不在页面加载时下，
+  // 等观众第一次点屏幕（也就是浏览器一定会弹摄像头授权的那一刻）再开始下。
+  // 这样首屏只需要 HTML+JS+第一出的皮影（约 1MB），画幕马上能出现。
+  // ?preload=1 可恢复成"后台预取"（展馆本地部署时用，反正不花流量）。
+  let modelPromise = null;
+  const ensureModel = () => {
+    if (modelPromise) return modelPromise;
+    if (manualMode) return (modelPromise = Promise.resolve());
+    modelPromise = gesture
+      .loadModel({
+        modelPath: './models/gesture_recognizer.task',
+        wasmPath: './vendor/mediapipe/wasm',
+      })
+      .catch((err) => {
+        console.warn('[boot] 手势模型加载失败', err);
+        const e = new Error((err && err.message) || '手势模型加载失败');
+        e.name = 'ModelError';
+        cameraError = cameraError || e;
+      });
+    return modelPromise;
+  };
+  if (params.get('preload') === '1') ensureModel();
 
   // ---- 键鼠演示 / 兜底
   const manual = {
@@ -258,8 +267,9 @@ async function boot() {
         e.name = 'NotFoundError';
         throw e;
       }
-      // 2) 等模型就绪（启动时已在后台并行加载）
-      await modelPromise;
+      // 2) 等模型就绪：现在才真正开始下载（约 10MB，gzip 后），给个明确提示
+      ui.setCameraBusy('正在下载手势模型（约 10MB，只需一次）…\n下载完会自动打开摄像头');
+      await ensureModel();
       if (!gesture.ready) throw cameraError || new Error('手势模型没有就绪');
       // 3) 在用户手势里申请摄像头——浏览器此时一定会弹授权框
       await gesture.startCamera();
@@ -300,6 +310,15 @@ async function boot() {
 
   // 点摄像头卡片 → 直接申请（用户手势，授权框一定会弹）
   document.getElementById('camera-card')?.addEventListener('click', () => armCamera());
+
+  // 卡片里的兜底按钮：没摄像头 / 网络慢 / 不想授权，直接进鼠标演示（不下载手势模型）
+  document.getElementById('mouse-demo')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    awaitingCamera = false;
+    setManual(true);
+    ui.setWakeText('动鼠标 · 开演');
+    ui.toast('已切到鼠标演示：移动鼠标带动皮影（按 M 可切回手势）', 3200);
+  });
 
   // 第一次点击屏幕任意处 → 申请摄像头。
   // 这是浏览器 100% 会弹授权框的时机；页面加载时申请经常被静默拒绝。
@@ -581,7 +600,8 @@ async function boot() {
   audio.loadLines?.(); // 有配置台词配音就加载清单
   audio.loadBgmFiles?.(); // 有戏剧原声文件就优先用它
   // 有戏剧原声（自带唱词/音乐）时默认不念 TTS 台词，避免两层人声打架；
-  // 想强制开回台词配音：?voice=1
+  // 想强制开回台词配音：?voice=1（forceVoice 让 31 个 mp3 仍会预取）
+  if (params.get('voice') === '1') audio.forceVoice = true;
   audio.loadBgmFiles?.().then?.((files) => {
     if (params.get('voice') === '1') {
       audio.voiceEnabled = true;
