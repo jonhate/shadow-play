@@ -267,9 +267,23 @@ async function boot() {
         e.name = 'NotFoundError';
         throw e;
       }
-      // 2) 等模型就绪：现在才真正开始下载（约 10MB，gzip 后），给个明确提示
+      // 2) 等模型就绪：现在才真正开始下载（约 10MB，gzip 后），给个明确提示；
+      //    超过 18 秒还没好就提示可以改用鼠标演示，别让人对着转圈干等。
       ui.setCameraBusy('正在下载手势模型（约 10MB，只需一次）…\n下载完会自动打开摄像头');
-      await ensureModel();
+      const slowTimer = setTimeout(() => {
+        if (manualMode) return;
+        ui.setCameraBusy('下载较慢…\n可先点下面金色按钮「用鼠标试玩」，或再等一会');
+      }, 18000);
+      try {
+        await ensureModel();
+      } finally {
+        clearTimeout(slowTimer);
+      }
+      // 等待期间用户已经切到鼠标演示了：不要再抢回摄像头
+      if (manualMode) {
+        cameraBusy = false;
+        return;
+      }
       if (!gesture.ready) throw cameraError || new Error('手势模型没有就绪');
       // 3) 在用户手势里申请摄像头——浏览器此时一定会弹授权框
       await gesture.startCamera();
@@ -315,7 +329,9 @@ async function boot() {
   document.getElementById('mouse-demo')?.addEventListener('click', (e) => {
     e.stopPropagation();
     awaitingCamera = false;
+    cameraBusy = false;
     setManual(true);
+    ui.setCameraBusy(null);
     ui.setWakeText('动鼠标 · 开演');
     ui.toast('已切到鼠标演示：移动鼠标带动皮影（按 M 可切回手势）', 3200);
   });
