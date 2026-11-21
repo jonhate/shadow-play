@@ -1,1 +1,8 @@
-﻿{ "name": "shadow-play", "private": true, "type": "module" }
+﻿{
+  "name": "shadow-play",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
