@@ -41,29 +41,49 @@ async function boot() {
   const duo = params.get('duo') === '1';
   const gesture = new GestureInput(video, { numHands: duo ? 4 : 2 });
 
-  // ---- 资源前缀：把"大文件"（皮影/模型/wasm）放到国内对象存储或 CDN 上，
+  // ---- 资源前缀：把"大文件"（皮影/模型/wasm）放到国内能跑满速的 CDN 上，
   // 页面本身仍然在 GitHub Pages，评委点的网址一个字都不用改。
-  // 用法：①把 puppets/ models/ vendor/mediapipe/wasm/ 传到 OSS/COS，开公共读 + CORS；
-  //       ②把下面这行改成你的地址（结尾不要带斜杠），例如
-  //          const ASSET_BASE_DEFAULT = 'https://your-bucket.oss-cn-hangzhou.aliyuncs.com/shadow-play';
-  //       ③临时验证可用 ?assets=https://... 覆盖，?assets=0 强制走同源。
-  const ASSET_BASE_DEFAULT = '';
+  //
+  // 默认源 = jsDelivr 对素材镜像仓库 jonhate/shadow-play-assets 的加速域名。
+  // 为什么另建一个仓库：jsDelivr 对 gh 仓库有「整包 50MB」上限，主仓库 130MB 会直接 403。
+  // 实测（2026-11-21，本机国内直连）：手势模型 8.4MB 2.8MB/s、wasm 13.5MB 3.0MB/s，
+  // 而同一个文件走 GitHub Pages 只有 6–38KB/s——差两个数量级。
+  //
+  // 换成自己的 OSS/COS 就改这一行（结尾不要带斜杠）；
+  // 临时验证用 ?assets=https://... 覆盖，?assets=0 强制走同源。
+  const ASSET_BASE_DEFAULT = 'https://cdn.jsdelivr.net/gh/jonhate/shadow-play-assets@main';
   const assetsParam = params.get('assets');
   let ASSET_BASE =
     assetsParam === '0' ? '' : assetsParam ? assetsParam.replace(/\/$/, '') : ASSET_BASE_DEFAULT;
   const assetUrl = (p) => (ASSET_BASE ? `${ASSET_BASE}/${String(p).replace(/^\.?\//, '')}` : `./${String(p).replace(/^\.?\//, '')}`);
+  // 回退是静默的：不把"资源到底来自哪个源"记下来，就会误以为加速生效了
+  // （水墨金陵梦踩过同一个坑）。诊断面板与 window.SHADOWPLAY.assetSource 都能看到。
+  let assetFellBack = false;
+  const assetSource = () => (ASSET_BASE ? ASSET_BASE : assetFellBack ? '同源（CDN 不可用，已回退）' : '同源');
 
   // 资源索引：优先走 ASSET_BASE（国内存储/CDN）；连不上或没配 CORS 就自动回退同源，
   // 绝不因为"加速"把整站搞成白屏。
+  // 必须带超时：CDN 被墙时的典型表现不是快速报错，而是长时间挂起（DNS 卡住或
+  // 代理无响应），不设上限页面会一直停在"正在请出皮影…"。实测挂死超过 30 秒。
+  const fetchWithTimeout = async (url, ms = 8000) => {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), ms);
+    try {
+      return await fetch(url, { signal: ctl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
+  };
   let catalog;
   try {
-    const r = await fetch(assetUrl('puppets/index.json'));
+    const r = await fetchWithTimeout(assetUrl('puppets/index.json'));
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     catalog = await r.json();
   } catch (err) {
     if (!ASSET_BASE) throw err;
-    console.warn('[boot] 资源前缀不可用，回退同源（检查对象存储的 CORS 是否允许本站）', err);
+    console.warn('[boot] 资源前缀不可用，回退同源（检查 CDN/对象存储的 CORS 是否允许本站）', err);
     ASSET_BASE = '';
+    assetFellBack = true;
     catalog = await fetch('./puppets/index.json').then((r) => r.json());
   }
   const assets = {};
@@ -122,10 +142,35 @@ async function boot() {
   const ensureModel = () => {
     if (modelPromise) return modelPromise;
     if (manualMode) return (modelPromise = Promise.resolve());
-    modelPromise = gesture
-      .loadModel({
-        modelPath: assetUrl('models/gesture_recognizer.task'),
-        wasmPath: assetUrl('vendor/mediapipe/wasm'),
+    // 每个源都拼成完整地址：CDN 走 ASSET_BASE，回退时走 ./ 同源
+    const loadFrom = (base) => {
+      const u = (p) => (base ? `${base}/${p}` : `./${p}`);
+      return gesture.loadModel({
+        modelPath: u('models/gesture_recognizer.task'),
+        wasmPath: u('vendor/mediapipe/wasm'),
+      });
+    };
+    // 超时兜底：CDN 挂起时不能让摄像头流程无限等待。
+    // 超时后立刻改走同源，而不是让人对着转圈干等。
+    const withTimeout = (p, ms, label) =>
+      Promise.race([
+        p,
+        new Promise((_, reject) => {
+          setTimeout(() => {
+            const e = new Error(label);
+            e.name = 'TimeoutError';
+            reject(e);
+          }, ms);
+        }),
+      ]);
+    modelPromise = withTimeout(loadFrom(ASSET_BASE), 40000, '手势模型从 CDN 下载超时')
+      .catch((err) => {
+        // CDN 被墙/超时/证书出错时，别把整个手势功能报废——退回同源再试一次。
+        // 慢是慢，但展馆里"能玩"比"快"重要。
+        if (!ASSET_BASE) throw err;
+        console.warn('[boot] 手势模型从 CDN 加载失败，回退同源重试', err);
+        assetFellBack = true;
+        return withTimeout(loadFrom(''), 240000, '手势模型下载超时');
       })
       .catch((err) => {
         console.warn('[boot] 手势模型加载失败', err);
@@ -293,7 +338,7 @@ async function boot() {
       }
       // 2) 等模型就绪：现在才真正开始下载（约 10MB，gzip 后），给个明确提示；
       //    超过 18 秒还没好就提示可以改用鼠标演示，别让人对着转圈干等。
-      ui.setCameraBusy('正在下载手势模型（约 10MB，只需一次）…\n下载完会自动打开摄像头');
+      ui.setCameraBusy('正在下载手势模型（约 22MB，只需一次）…\n下载完会自动打开摄像头');
       const slowTimer = setTimeout(() => {
         if (manualMode) return;
         ui.setCameraBusy('下载较慢…\n可先点下面金色按钮「用鼠标试玩」，或再等一会');
@@ -608,6 +653,7 @@ async function boot() {
     const hands = show.gestureHands || [];
     ui.setDebug([
       `URL      : ${location.search || '(none)'}`,
+      `assets   : ${assetSource()}`,
       `camera   : ${gesture.running ? 'running' : 'off'}${cameraError ? '  err=' + (cameraError.name || '') : awaitingCamera ? '  waiting-click' : ''}`,
       `model    : ${gesture.ready ? 'ready' : 'loading'}  delegate=${gesture.delegate || '-'}`,
       `inference: ${gesture.frameMs ? Math.round(gesture.frameMs) + ' ms/frame' : '-'}`,
@@ -624,7 +670,7 @@ async function boot() {
   requestAnimationFrame(loop);
 
   // 调试/集成用
-  window.SHADOWPLAY = { stage, show, gesture, ui, audio, assets, SCENES, STATE, manual };
+  window.SHADOWPLAY = { stage, show, gesture, ui, audio, assets, SCENES, STATE, manual, assetSource };
   if (params.get('still') === '1') show.still = true;
   if (params.get('skin')) show.applySkin(params.get('skin'));
   else if (params.get('paint') === '1') show.applySkin('painted');

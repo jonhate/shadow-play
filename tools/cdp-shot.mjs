@@ -192,6 +192,8 @@ const stats = await evalJs(`JSON.stringify(window.SHADOWPLAY ? {
   leadParts: window.SHADOWPLAY.show.lead ? window.SHADOWPLAY.show.lead.rig.parts.length : null,
   arms: window.SHADOWPLAY.show.lead ? Object.keys(window.SHADOWPLAY.show.lead.rig.arms).filter(k=>window.SHADOWPLAY.show.lead.rig.arms[k]) : null,
   legs: window.SHADOWPLAY.show.lead ? Object.keys(window.SHADOWPLAY.show.lead.rig.legs).filter(k=>window.SHADOWPLAY.show.lead.rig.legs[k]) : null,
+  assetSource: window.SHADOWPLAY.assetSource ? window.SHADOWPLAY.assetSource() : null,
+  probe: window.__probe || null,
   callbacks: 'ok'
 } : { page: (document.title || '') })`);
 console.log('stats:', stats);
