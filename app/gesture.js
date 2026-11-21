@@ -37,10 +37,30 @@ export class GestureInput {
   async loadModel({ modelPath = './models/gesture_recognizer.task', wasmPath = './vendor/mediapipe/wasm' } = {}) {
     if (this.modelLoading) return this.modelLoading;
     this.modelLoading = (async () => {
+      // 模型（8.4MB）和 wasm（13.5MB）分开下就变成串行，国内要 40s+；
+      // 这里先自己把模型字节拉起来，与 FilesetResolver 初始化 wasm 同时进行。
+      const modelBytes = fetch(modelPath)
+        .then((r) => {
+          if (!r.ok) throw new Error(`手势模型下载失败 HTTP ${r.status}`);
+          return r.arrayBuffer();
+        })
+        .catch((err) => {
+          // 自己取失败不致命：还能让 MediaPipe 用 modelAssetPath 再取一次
+          console.warn('[gesture] 预取模型字节失败，改由 MediaPipe 自行下载', err);
+          return null;
+        });
+
       const fileset = await FilesetResolver.forVisionTasks(wasmPath);
+      const bytes = await modelBytes;
+
+      // modelAssetBuffer 会被 MediaPipe 读走，GPU→CPU 重试时给一份新的拷贝
+      const baseOptions = (delegate) =>
+        bytes
+          ? { modelAssetBuffer: new Uint8Array(bytes.slice(0)), delegate }
+          : { modelAssetPath: modelPath, delegate };
       const tryCreate = async (delegate) =>
         GestureRecognizer.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: modelPath, delegate },
+          baseOptions: baseOptions(delegate),
           runningMode: 'VIDEO',
           numHands: this.numHands,
           minHandDetectionConfidence: 0.5,

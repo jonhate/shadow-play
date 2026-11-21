@@ -130,9 +130,11 @@ async function evalJs(expression, awaitPromise = true) {
 
 // 等 SHADOWPLAY 就绪（非展项页面可以用 SKIP_READY=1 跳过）
 const t0 = Date.now();
+// 线上国内直连首屏就要 40s+，所以等待时长可调：READY_WAIT_MS=180000
+const READY_WAIT_MS = Number(process.env.READY_WAIT_MS || 30000);
 let ready = process.env.SKIP_READY === '1' ? true : false;
 if (process.env.SKIP_READY === '1') console.log('ready: skipped');
-while (!ready && Date.now() - t0 < 30000) {
+while (!ready && Date.now() - t0 < READY_WAIT_MS) {
   ready = await evalJs('!!window.SHADOWPLAY').catch(() => false);
   if (ready) break;
   await new Promise((r) => setTimeout(r, 500));
