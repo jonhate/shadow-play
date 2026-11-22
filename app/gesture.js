@@ -1,4 +1,5 @@
 import { FilesetResolver, GestureRecognizer } from '../vendor/mediapipe/vision_bundle.mjs';
+import { createLoadSlot } from './model-loader.js';
 
 /**
  * 手势输入：MediaPipe Gesture Recognizer（Google 官方，VIDEO 模式，单模型同时给
@@ -32,26 +33,72 @@ export class GestureInput {
     this.lastResult = null;
     this.frameMs = 0;
     this.error = null;
+    // 模型加载槽：并发合并、失败不进缓存（见 app/model-loader.js 与 tests/）
+    this.loadSlot = createLoadSlot();
+    this.loadController = null;
   }
 
+  /**
+   * 加载手势模型。可以安全地重复调用：
+   *  - 正在加载：等同一份结果（不会把 22MB 下两遍）
+   *  - 上一次失败：重新来一遍（失败不进缓存，这是「点这里重试」能好使的前提）
+   *  - 被 cancelModelLoad() 作废：本次以 SupersededError 结束，迟到结果不再算数
+   */
   async loadModel({ modelPath = './models/gesture_recognizer.task', wasmPath = './vendor/mediapipe/wasm' } = {}) {
-    if (this.modelLoading) return this.modelLoading;
-    this.modelLoading = (async () => {
+    const out = await this.loadSlot.start(() => this.#createRecognizer({ modelPath, wasmPath }));
+    this.recognizer = out.recognizer;
+    this.delegate = out.delegate;
+    this.ready = true;
+    return this;
+  }
+
+  /**
+   * 中止/作废当前这次加载：超时后要换源、或用户不等了都走这里。
+   * 它会真的 abort 掉底层 fetch —— 只 race 一个超时是不够的，
+   * 底层那次悬挂的 Promise 会让后面「兜底再下一次」变成假切源。
+   * 模型已经就绪时是空操作（不会把 ready 打回 false）。
+   */
+  cancelModelLoad() {
+    if (this.loadSlot.done) return;
+    const ctl = this.loadController;
+    this.loadController = null;
+    this.loadSlot.invalidate();
+    try {
+      ctl?.abort();
+    } catch (err) {
+      /* 老浏览器没有 AbortController 时忽略 */
+    }
+  }
+
+  async #createRecognizer({ modelPath, wasmPath }) {
+    const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+    this.loadController = ctl;
+    const signal = ctl ? ctl.signal : undefined;
+    const aborted = () => {
+      const e = new Error('手势模型加载已取消');
+      e.name = 'AbortError';
+      return e;
+    };
+    try {
       // 模型（8.4MB）和 wasm（13.5MB）分开下就变成串行，国内要 40s+；
       // 这里先自己把模型字节拉起来，与 FilesetResolver 初始化 wasm 同时进行。
-      const modelBytes = fetch(modelPath)
+      const modelBytes = fetch(modelPath, signal ? { signal } : undefined)
         .then((r) => {
           if (!r.ok) throw new Error(`手势模型下载失败 HTTP ${r.status}`);
           return r.arrayBuffer();
         })
         .catch((err) => {
+          // 是我们主动取消的，就别悄悄改走 modelAssetPath（那样等于没取消）
+          if (signal?.aborted) throw aborted();
           // 自己取失败不致命：还能让 MediaPipe 用 modelAssetPath 再取一次
           console.warn('[gesture] 预取模型字节失败，改由 MediaPipe 自行下载', err);
           return null;
         });
 
       const fileset = await FilesetResolver.forVisionTasks(wasmPath);
+      if (signal?.aborted) throw aborted();
       const bytes = await modelBytes;
+      if (signal?.aborted) throw aborted();
 
       // modelAssetBuffer 会被 MediaPipe 读走，GPU→CPU 重试时给一份新的拷贝
       const baseOptions = (delegate) =>
@@ -68,17 +115,17 @@ export class GestureInput {
           minTrackingConfidence: 0.5,
         });
       try {
-        this.recognizer = await tryCreate('GPU');
-        this.delegate = 'GPU';
+        const recognizer = await tryCreate('GPU');
+        return { recognizer, delegate: 'GPU' };
       } catch (err) {
         console.warn('[gesture] GPU 初始化失败，退回 CPU', err);
-        this.recognizer = await tryCreate('CPU');
-        this.delegate = 'CPU';
+        if (signal?.aborted) throw aborted();
+        const recognizer = await tryCreate('CPU');
+        return { recognizer, delegate: 'CPU' };
       }
-      this.ready = true;
-      return this;
-    })();
-    return this.modelLoading;
+    } finally {
+      if (this.loadController === ctl) this.loadController = null;
+    }
   }
 
   async startCamera(constraints = {}) {

@@ -1,6 +1,7 @@
 import { loadWoop } from './woop.js';
 import { Stage } from './stage.js';
 import { GestureInput } from './gesture.js';
+import { createModelLoader } from './model-loader.js';
 import { Show, STATE, SCENES } from './show.js';
 import { UI } from './ui.js';
 import { Audio } from './audio.js';
@@ -138,49 +139,44 @@ async function boot() {
   // 等观众第一次点屏幕（也就是浏览器一定会弹摄像头授权的那一刻）再开始下。
   // 这样首屏只需要 HTML+JS+第一出的皮影（约 1MB），画幕马上能出现。
   // ?preload=1 可恢复成"后台预取"（展馆本地部署时用，反正不花流量）。
-  let modelPromise = null;
-  const ensureModel = () => {
-    if (modelPromise) return modelPromise;
-    if (manualMode) return (modelPromise = Promise.resolve());
-    // 每个源都拼成完整地址：CDN 走 ASSET_BASE，回退时走 ./ 同源
-    const loadFrom = (base) => {
+  //
+  // 加载闸门在 app/model-loader.js，它负责三件容易做错的事：
+  //  - 失败不进缓存 → 「点这里重试」/按 R 真的会重新开始；
+  //  - 并发合并 → 连点屏幕不会把 22MB 下两遍；
+  //  - 主源超时先真的取消底层那次，再走同源兜底 → 不会等到同一份悬挂的 Promise（假切源）。
+  const modelGate = createModelLoader({
+    // 每个源都拼成完整地址：主源走 ASSET_BASE，兜底走 ./ 同源
+    load: (kind) => {
+      const base = kind === 'fallback' ? '' : ASSET_BASE;
       const u = (p) => (base ? `${base}/${p}` : `./${p}`);
       return gesture.loadModel({
         modelPath: u('models/gesture_recognizer.task'),
         wasmPath: u('vendor/mediapipe/wasm'),
       });
-    };
-    // 超时兜底：CDN 挂起时不能让摄像头流程无限等待。
-    // 超时后立刻改走同源，而不是让人对着转圈干等。
-    const withTimeout = (p, ms, label) =>
-      Promise.race([
-        p,
-        new Promise((_, reject) => {
-          setTimeout(() => {
-            const e = new Error(label);
-            e.name = 'TimeoutError';
-            reject(e);
-          }, ms);
-        }),
-      ]);
-    modelPromise = withTimeout(loadFrom(ASSET_BASE), 40000, '手势模型从 CDN 下载超时')
-      .catch((err) => {
-        // CDN 被墙/超时/证书出错时，别把整个手势功能报废——退回同源再试一次。
-        // 慢是慢，但展馆里"能玩"比"快"重要。
-        if (!ASSET_BASE) throw err;
-        console.warn('[boot] 手势模型从 CDN 加载失败，回退同源重试', err);
-        assetFellBack = true;
-        return withTimeout(loadFrom(''), 240000, '手势模型下载超时');
-      })
-      .catch((err) => {
-        console.warn('[boot] 手势模型加载失败', err);
-        const e = new Error((err && err.message) || '手势模型加载失败');
-        e.name = 'ModelError';
-        cameraError = cameraError || e;
-      });
-    return modelPromise;
-  };
-  if (params.get('preload') === '1') ensureModel();
+    },
+    // ?assets=0 本来就走同源，那就别假装切源
+    hasFallback: () => Boolean(ASSET_BASE),
+    primaryTimeoutMs: 40000, // CDN 冻结时的等待上限（实测能挂死 >30s）
+    fallbackTimeoutMs: 240000, // 同源可能只有几十 KB/s，给足时间
+    // 超时/失败后先 abort 底层下载，再兜底：否则兜底复用同一份悬挂 Promise（假切源）
+    cancel: () => gesture.cancelModelLoad(),
+    onFallback: (err) => {
+      // CDN 被墙/超时/证书出错时，别把整个手势功能报废——退回同源再试一次。
+      // 慢是慢，但展馆里"能玩"比"快"重要。
+      console.warn('[boot] 手势模型从 CDN 加载失败，回退同源重试', err);
+      assetFellBack = true;
+    },
+    onError: (err) => console.warn('[boot] 手势模型加载失败', err),
+  });
+  // 唯一入口：失败把错误抛给调用方（armCamera 转成 ModelError 显示），
+  // 但绝不把这次失败缓存下来——下一次调用会真的重新开始。
+  const ensureModel = () => modelGate.ensure();
+  // 手动模式不预取（省流量），但也绝不再缓存一个「已加载」的假结果：
+  // 原来这里 `return (modelPromise = Promise.resolve())`，从 ?manual=1 切到摄像头时
+  // 就会认为模型已经就绪，于是摄像头永远起不来、只能刷新页面。
+  if (params.get('preload') === '1' && !manualMode) {
+    ensureModel().catch((err) => console.warn('[boot] 预取手势模型失败（点屏幕时会重试）', err));
+  }
 
   // ---- 键鼠演示 / 兜底
   const manual = {
@@ -344,7 +340,15 @@ async function boot() {
         ui.setCameraBusy('下载较慢…\n可先点下面金色按钮「用鼠标试玩」，或再等一会');
       }, 18000);
       try {
-        await ensureModel();
+        // 模型这次没成就把错误抛上来（不要在半路吞掉）：外面那层 catch 会显示成
+        // "手势模型没加载成功 · 点这里重试"，而闸门本身已经把这次失败从缓存里清掉了，
+        // 所以再点一次是真的从头再来，不会复用上一次的失败。
+        await ensureModel().catch((err) => {
+          const e = new Error((err && err.message) || '手势模型加载失败');
+          e.name = 'ModelError'; // cameraErrorText() 靠这个名字给中文提示
+          e.cause = err;
+          throw e;
+        });
       } finally {
         clearTimeout(slowTimer);
       }
@@ -353,7 +357,7 @@ async function boot() {
         cameraBusy = false;
         return;
       }
-      if (!gesture.ready) throw cameraError || new Error('手势模型没有就绪');
+      if (!gesture.ready) throw new Error('手势模型没有就绪，请再点一次重试');
       // 3) 在用户手势里申请摄像头——浏览器此时一定会弹授权框
       await gesture.startCamera();
       cameraError = null;
@@ -655,7 +659,7 @@ async function boot() {
       `URL      : ${location.search || '(none)'}`,
       `assets   : ${assetSource()}`,
       `camera   : ${gesture.running ? 'running' : 'off'}${cameraError ? '  err=' + (cameraError.name || '') : awaitingCamera ? '  waiting-click' : ''}`,
-      `model    : ${gesture.ready ? 'ready' : 'loading'}  delegate=${gesture.delegate || '-'}`,
+      `model    : ${gesture.ready ? 'ready' : modelGate.status}  delegate=${gesture.delegate || '-'}${modelGate.fallbackUsed ? '  (已回退同源)' : ''}`,
       `inference: ${gesture.frameMs ? Math.round(gesture.frameMs) + ' ms/frame' : '-'}`,
       `hands    : ${hands.length}  ${hands.map((h) => `${h.label}(${h.openness?.toFixed(2)})`).join(' ')}`,
       `mode     : ${manualMode ? 'mouse-fallback' : 'gesture'}  duo=${duo}`,
@@ -670,7 +674,7 @@ async function boot() {
   requestAnimationFrame(loop);
 
   // 调试/集成用
-  window.SHADOWPLAY = { stage, show, gesture, ui, audio, assets, SCENES, STATE, manual, assetSource };
+  window.SHADOWPLAY = { stage, show, gesture, ui, audio, assets, SCENES, STATE, manual, assetSource, modelGate };
   if (params.get('still') === '1') show.still = true;
   if (params.get('skin')) show.applySkin(params.get('skin'));
   else if (params.get('paint') === '1') show.applySkin('painted');
