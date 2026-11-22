@@ -28,7 +28,10 @@ export class Stage {
 
     this.puppets = [];
     this.scenery = [];
-    this.dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // 皮影是纯色剪影，1.5 倍足够锐利（还开着 antialias）；
+    // 2 倍屏（Windows 200% 缩放 / Mac Retina）下每帧要多算 78% 的像素，
+    // 这是"高分辨率屏上反而更卡"的典型原因，封顶到 1.5。
+    this.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     this.resize();
   }
 

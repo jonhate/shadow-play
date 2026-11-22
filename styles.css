@@ -72,7 +72,11 @@ body.kiosk button {
   width: min(82vw, 133vh);
   aspect-ratio: 16 / 10;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 40px 90px rgba(0, 0, 0, 0.8));
+  /* 这里原来用 filter: drop-shadow() 画幕布投影。
+     问题：drop-shadow 是对「整个子树渲染结果」做一次 90px 半径的模糊，
+     而子树里每帧都在变（WebGL 画布每帧重绘、云在飘），于是这个模糊
+     每帧都要重算一遍——这是画面发涩最主要的开销之一。
+     改用静态的 box-shadow：投影按边框盒画一次就够，不再随内容重算。 */
 }
 
 .stage-wrap::before {
@@ -96,7 +100,8 @@ body.kiosk button {
     linear-gradient(150deg, #4a2e1b 0%, #2b1a10 26%, #1b1009 55%, #3a2415 100%);
   box-shadow:
     inset 0 0 0 1px rgba(232, 205, 122, 0.28),
-    inset 0 2px 18px rgba(0, 0, 0, 0.6);
+    inset 0 2px 18px rgba(0, 0, 0, 0.6),
+    0 40px 90px rgba(0, 0, 0, 0.8); /* 原 .stage-wrap 的投影，挪到这里静态绘制 */
 }
 
 .stage-frame::before {
@@ -182,9 +187,12 @@ body.kiosk button {
 .cloud path {
   fill: rgba(120, 68, 34, 0.16);
 }
-.c1 { animation: drift 46s linear infinite; }
-.c2 { animation: drift 62s linear infinite reverse; }
-.c3 { animation: drift 54s linear infinite; }
+/* 云的缓慢飘动。原来三层都在动，而 SVG 的变换动画在 Chromium 里不会
+   单独合成，等于每帧把整张云的 SVG 重新栅格化一遍——这是"画面发涩"的
+   另一个来源。三层叠在一起本来就看不出一层在动还是三层在动，
+   所以只留最上面一层 c1 飘，c2/c3 静止。 */
+.c1 { animation: drift 58s linear infinite; }
+.c2, .c3 { animation: none; }
 @keyframes drift {
   from { transform: translateX(-24px); }
   50% { transform: translateX(26px); }
@@ -213,6 +221,11 @@ body.kiosk button {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  /* screen 是"加色"混合：对越暗的通道抬得越多，所以这层柔光在视觉上是
+     偏暖的。试过换成普通半透明去省掉这次全屏混合，测下来中间那片蓝通道
+     掉了 20 多级（发灰发闷），不值得——保留 screen。
+     真正的开销已经在那几条上砍掉了：幕布投影不再每帧重算模糊、
+     宣纸颗粒不再全屏正片叠底+模糊、云只留一层在飘。 */
   background:
     radial-gradient(ellipse 46% 38% at 50% 44%, rgba(255, 250, 230, 0.62), rgba(255, 245, 210, 0) 72%),
     linear-gradient(180deg, rgba(255, 240, 205, 0.2) 0%, rgba(255, 240, 205, 0) 32%, rgba(120, 60, 20, 0.1) 100%);
@@ -223,11 +236,14 @@ body.kiosk button {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.2;
-  mix-blend-mode: multiply;
-  /* 用 feTurbulence 做宣纸颗粒；blur 半像素是为了盖掉拼贴缝 */
-  filter: blur(0.6px);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  opacity: 0.16;
+  /* 宣纸颗粒。
+     原来写成 mix-blend-mode: multiply + filter: blur(0.6px)：
+     全屏混合模式 + 全屏模糊，只要下面的画布一动，这两件事每帧都要重做一遍。
+     改成「黑色 + 由噪声驱动的 alpha」的普通叠加（视觉上≈原来的正片叠底变暗），
+     半像素柔化直接用 SVG 里的 feGaussianBlur 做进图里，不再走 CSS filter。
+     效果一样，但合成器只需画一张已经准备好的图。 */
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .1 .1 .1 0 0'/%3E%3CfeGaussianBlur stdDeviation='.45'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .stage-vignette {
@@ -357,7 +373,8 @@ body.kiosk button {
   font-size: clamp(11px, 1.06vmin, 18px);
   line-height: 1;
   letter-spacing: 0;
-  transform: rotate(-2deg);
+  /* 原来这里是 rotate(-2deg)：想做成"手盖上去不太正"的味道，
+     实际看着就是一个歪格子，干脆摆正。 */
 }
 .seal span { padding: 2px; }
 
@@ -1294,10 +1311,21 @@ body.debug .debug-panel { display: block; }
   background: rgba(26, 15, 8, 0.86);
   box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.45);
   color: rgba(232, 205, 122, 0.9);
-  font: inherit;
-  font-size: clamp(13px, 1vw, 19px);
+  /* 原来是把一个半角 ? 塞进圆里：字号靠继承、没有居中、没有 line-height，
+     字体一换就偏到一边去了。现在换成自己画的问号（SVG），
+     跟字体无关，圆内几何居中，任何机器上都是同一个形状。 */
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 0;
   cursor: pointer;
   transition: box-shadow 0.25s, color 0.25s;
+}
+.help-btn svg {
+  width: 62%;
+  height: 62%;
+  display: block;
+  overflow: visible;
 }
 .help-btn:hover { color: var(--gold-light); box-shadow: inset 0 0 0 1px var(--gold-light), 0 0 16px rgba(201, 162, 39, 0.3); }
 

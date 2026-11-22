@@ -606,6 +606,13 @@ async function boot() {
   let frames = 0;
   let bodyFinger = null;
   const loop = (now) => {
+    // 窗口被切到后台（或展馆的屏幕被系统遮住）就不要再空转：
+    // 一天开十几个小时，白烧的电和热量最后都会变成"卡"。
+    if (document.hidden) {
+      last = now;
+      requestAnimationFrame(loop);
+      return;
+    }
     const dt = Math.min(0.05, Math.max(0.0005, (now - last) / 1000));
     last = now;
     if (manualMode) {

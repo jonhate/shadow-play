@@ -46,7 +46,19 @@ const t0 = Date.now();
 for (const c of CASES) {
   const env = { SKIP_READY: '0' };
   if (c.steps) env.STEPS_FILE = path.join(ROOT, 'tools', c.steps);
-  const { code, out } = await run([SHOT, BASE + c.url], env);
+  // 无头浏览器偶尔连不上 devtools（上一个实例还没退干净 / 端口抢占）。
+  // 这是测量工具的问题，不是页面的问题——重试，别冤枉代码。
+  let attempt = 0;
+  let code = 1;
+  let out = '';
+  while (attempt < 3) {
+    attempt += 1;
+    ({ code, out } = await run([SHOT, BASE + c.url], env));
+    const transient = /devtools 未就绪|Failed to connect|ECONNREFUSED|ECONNRESET/.test(out);
+    if (!transient) break;
+    await new Promise((r) => setTimeout(r, 1200 * attempt));
+  }
+  const retryNote = attempt > 1 ? `（第 ${attempt} 次尝试）` : '';
   const errLine = (out.match(/page-errors: (.*)/) || [, '?'])[1];
   const noErr = errLine.trim() === '[]';
   let detail = `page-errors ${errLine.trim()}`;
@@ -74,10 +86,10 @@ for (const c of CASES) {
 
   if (noErr && code === 0) {
     pass += 1;
-    console.log(`✓ ${c.name}  ${detail}`);
+    console.log(`✓ ${c.name}  ${detail}${retryNote}`);
   } else {
     fail += 1;
-    console.log(`✗ ${c.name}  ${detail}  (exit ${code})`);
+    console.log(`✗ ${c.name}  ${detail}  (exit ${code})${retryNote}`);
     if (!noErr) {
       const lines = out.split('\n').filter((l) => l.includes('page-errors') || l.includes('Error'));
       console.log('   ' + lines.slice(0, 3).join('\n   '));
