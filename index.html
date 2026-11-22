@@ -102,8 +102,43 @@
           <span id="lesson-index">第 1 / 4 步</span>
           <div class="lesson-dots" id="lesson-dots"></div>
         </div>
-        <div class="lesson-title" id="lesson-title">举起一只手</div>
-        <div class="lesson-tip" id="lesson-tip"></div>
+        <div class="lesson-body">
+          <div class="lesson-text">
+            <div class="lesson-title" id="lesson-title">举起一只手</div>
+            <div class="lesson-tip" id="lesson-tip"></div>
+          </div>
+          <div class="lesson-figure" id="lesson-figure" aria-hidden="true">
+            <svg viewBox="0 0 152 116">
+              <defs>
+                <linearGradient id="gripTip" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#e8cd7a" stop-opacity="0.5" />
+                  <stop offset="1" stop-color="#e8cd7a" stop-opacity="0.12" />
+                </linearGradient>
+              </defs>
+              <!-- 三根签：左签、右签管两只手，主签管脖子 -->
+              <g stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none">
+                <line x1="78" y1="52" x2="36" y2="18" />
+                <line x1="78" y1="52" x2="120" y2="20" />
+                <line x1="78" y1="52" x2="86" y2="106" />
+              </g>
+              <!-- 拇指与食指的指尖，捏在这三根签的交叉处 -->
+              <g fill="url(#gripTip)" stroke="#c9a227" stroke-width="1" stroke-opacity="0.55">
+                <ellipse cx="64" cy="64" rx="12.5" ry="7.5" transform="rotate(-26 64 64)" />
+                <ellipse cx="93" cy="42" rx="12.5" ry="7.5" transform="rotate(-26 93 42)" />
+              </g>
+              <circle cx="78" cy="52" r="4.4" fill="#b5342c" />
+              <g font-size="7.5" fill="currentColor" opacity="0.9">
+                <text x="2" y="13">左手签</text>
+                <text x="151" y="13" text-anchor="end">右手签</text>
+                <text x="90" y="110">主签·脖子</text>
+                <text x="46" y="80" text-anchor="end">捏住</text>
+                <text x="149" y="70" text-anchor="end">搓动</text>
+              </g>
+              <text x="143" y="88" text-anchor="end" font-size="15" fill="currentColor" opacity="0.75">↻</text>
+            </svg>
+            <span class="lesson-figure-cap">三签握法</span>
+          </div>
+        </div>
         <div class="lesson-track"><div class="lesson-bar" id="lesson-bar"></div></div>
         <div class="lesson-foot">做到就过 · <kbd>T</kbd> 跳过 · <kbd>H</kbd> 看全部动作</div>
       </div>

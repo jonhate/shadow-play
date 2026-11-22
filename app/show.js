@@ -216,6 +216,7 @@ export const LESSON_FINGER = [
   },
   {
     id: 'f-pinch',
+    figure: 'grip',
     title: '拇指食指捏住',
     tip: '像捏住一根竹签：拇指和食指指尖碰在一起——皮影那只手就被“签”带起来了',
     hold: 0.7,
@@ -223,6 +224,7 @@ export const LESSON_FINGER = [
   },
   {
     id: 'f-release',
+    figure: 'grip',
     title: '松开，手臂就落下',
     tip: '把拇指和食指分开——签松了，皮影的手自然垂下去',
     hold: 0.5,
@@ -233,6 +235,7 @@ export const LESSON_FINGER = [
   },
   {
     id: 'f-roll',
+    figure: 'grip',
     title: '搓动，让手腕转起来',
     tip: '捏住的同时，把拇指食指这条线转一转——这就是传统里的“搓签”，皮影手腕会跟着转',
     hold: 0.6,
@@ -841,6 +844,7 @@ export class Show {
       total: this.lessonSteps.length,
       title: step.title,
       tip: step.tip,
+      figure: step.figure,
       progress: 0,
     });
   }
@@ -900,6 +904,7 @@ export class Show {
       total: this.lessonSteps.length,
       title: step.title,
       tip: step.tip,
+      figure: step.figure,
       progress: p,
     });
 

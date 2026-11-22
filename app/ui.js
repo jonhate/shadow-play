@@ -192,7 +192,7 @@ export class UI {
   }
 
   /** 教学关卡片 */
-  setLesson({ visible, index = 0, total = 4, title = '', tip = '', progress = 0 } = {}) {
+  setLesson({ visible, index = 0, total = 4, title = '', tip = '', progress = 0, figure = null } = {}) {
     const el = $('#lesson');
     if (!el) return;
     el.classList.toggle('is-on', !!visible);
@@ -203,8 +203,11 @@ export class UI {
     const bar = $('#lesson-bar');
     const dots = $('#lesson-dots');
     const idx = $('#lesson-index');
+    const fig = $('#lesson-figure');
     if (t) t.textContent = title;
     if (p) p.textContent = tip;
+    // 握签图解只在"讲手上怎么捏"的那几步出现，别的时候藏起来免得占地方
+    if (fig) fig.classList.toggle('is-on', figure === 'grip');
     if (bar) bar.style.width = `${Math.round(progress * 100)}%`;
     if (idx) idx.textContent = `第 ${index + 1} / ${total} 步`;
     if (dots) {

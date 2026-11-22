@@ -1040,6 +1040,36 @@ body.debug .debug-panel { display: block; }
 }
 .lesson-dots i.done { background: rgba(176, 42, 26, 0.85); }
 
+/* 教学卡左文右图：手指模式的握签图解 */
+.lesson-body {
+  display: flex;
+  align-items: center;
+  gap: 1.1vw;
+}
+.lesson-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.lesson-figure {
+  flex: 0 0 auto;
+  display: none;
+  text-align: center;
+  color: var(--gold-light);
+}
+.lesson-figure.is-on { display: block; }
+.lesson-figure svg {
+  width: clamp(84px, 8.2vw, 132px);
+  height: auto;
+  overflow: visible;
+}
+.lesson-figure-cap {
+  display: block;
+  margin-top: 2px;
+  font-size: clamp(8px, 0.6vw, 11px);
+  letter-spacing: 0.18em;
+  color: rgba(214, 184, 138, 0.5);
+}
+
 .lesson-title {
   margin-top: 0.9vh;
   font-size: clamp(19px, 1.7vw, 34px);
