@@ -15,7 +15,10 @@ export class Puppet {
     this.group.add(this.rodGroup);
 
     this.scale = opts.scale ?? 0.45;
-    this.facing = 1;
+    // 朝向：原来这里硬写 1，opts.facing 只在景片（addScenery）里生效，
+    // 所以 cast 里写的 facing:-1 一直是无效的——皮影全朝右，靠运行时 setFacing 兜着。
+    // 现在按 cast 说的来：主角朝右、配角朝左，两人面对面。
+    this.facing = opts.facing != null && opts.facing < 0 ? -1 : 1;
     this.floorY = opts.floorY ?? -380;
     this.baseX = opts.x ?? 0;
     this.x = this.baseX;

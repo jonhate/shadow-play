@@ -1294,12 +1294,14 @@ body.debug .debug-panel { display: block; }
 /* 右上角工具条：不再压在左侧竖排题名与「非遗」印章上 */
 .util-rail {
   position: absolute;
-  right: 2.2vw;
+  right: 2.4vw;
   top: 3.2vh;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.7vh;
+  /* 原来是竖排（三个按钮从上往下），在高分屏上第三个按钮正好压住右侧竖排的场次字幕
+     （div.scene-tag，right:2.6vw / top:11vh）。改成横排后整条落在字幕上方，互不遮挡。 */
+  flex-direction: row;
+  align-items: center;
+  gap: 0.7vw;
   z-index: 9;
 }
 

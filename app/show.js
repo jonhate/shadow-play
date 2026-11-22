@@ -1,13 +1,11 @@
 import { clamp, lerp, wrapPi } from './rig.js';
 
 /**
- * 朝向：一出戏里所有皮影都朝同一个方向（面向画面右侧）。
- * 旧版是「主角朝右、配角朝左」两两相对，走到画卷边上还会各自回身，
- * 于是同一出戏里谁跟谁同向是随时变的——观众没法据此理解手势。
- * 现在统一成一个常量、运行时不转身。万一某个资产本身是镜像画的，
- * 只把 cast 里那一行的 facing 单独写成 -1 即可。
+ * 朝向：一出戏里主角在左、朝右（facing: 1），配角在右、朝左（facing: -1），两人面对面。
+ * 运行时不再自动翻面——以前走到画卷边上会各自回身，同一出戏里"谁跟谁同向"随时变，
+ * 观众没法据此理解手势。需要改朝向时由观众「比耶」（食指+中指伸出）触发，
+ * 见 applyTurnGesture()。万一某个资产本身是镜像画的，把那一行的 facing 取反即可。
  */
-const CAST_FACING = 1;
 
 /** 剧目：六出戏。每出可以带 beats（剧情节拍），节拍里能要求观众做某个动作才继续。 */
 export const SCENES = [
@@ -18,8 +16,8 @@ export const SCENES = [
     caption: '一盏灯，一张皮。两手执签，便有了悲欢。',
     hint: '两手并拢 = 作揖，剧情才往下走',
     cast: [
-      { asset: '长辫女子', x: -190, facing: CAST_FACING, height: 590, lead: true },
-      { asset: '乌帽书生', x: 210, facing: CAST_FACING, height: 560 },
+      { asset: '长辫女子', x: -190, facing: 1, height: 590, lead: true },
+      { asset: '乌帽书生', x: 210, facing: -1, height: 560 },
     ],
     props: [
       { asset: '凉亭', x: -390, y: -320, height: 290, opacity: 0.52 },
@@ -41,8 +39,8 @@ export const SCENES = [
     hint: '双手举高 = 亮相，再举一次换出目',
     duet: true,
     cast: [
-      { asset: '翎冠武生', x: -210, facing: CAST_FACING, height: 600, lead: true },
-      { asset: '持戟武将', x: 230, facing: CAST_FACING, height: 580 },
+      { asset: '翎冠武生', x: -210, facing: 1, height: 600, lead: true },
+      { asset: '持戟武将', x: 230, facing: -1, height: 580 },
     ],
     props: [
       { asset: '宝塔', x: -480, y: -330, height: 355, opacity: 0.5 },
@@ -62,8 +60,8 @@ export const SCENES = [
     caption: '鹤背清风，一管竹签，也能腾云。',
     hint: '双手举高 = 腾云，双拳 = 定格留影',
     cast: [
-      { asset: '骑鹤仙人', x: -220, facing: CAST_FACING, height: 540, lead: true },
-      { asset: '鹿', x: 300, facing: CAST_FACING, height: 400 },
+      { asset: '骑鹤仙人', x: -220, facing: 1, height: 540, lead: true },
+      { asset: '鹿', x: 300, facing: -1, height: 400 },
     ],
     props: [
       { asset: '拱桥', x: 40, y: -372, height: 225, opacity: 0.46 },
@@ -83,8 +81,8 @@ export const SCENES = [
     caption: '待月西厢下，迎风户半开。',
     hint: '两手并拢 = 作揖，两人见礼',
     cast: [
-      { asset: '乌帽书生', x: -200, facing: CAST_FACING, height: 570, lead: true },
-      { asset: '长辫女子', x: 200, facing: CAST_FACING, height: 580 },
+      { asset: '乌帽书生', x: -200, facing: 1, height: 570, lead: true },
+      { asset: '长辫女子', x: 200, facing: -1, height: 580 },
     ],
     props: [
       { asset: '凉亭', x: 0, y: -330, height: 320, opacity: 0.45 },
@@ -106,8 +104,8 @@ export const SCENES = [
     caption: '力拔山兮气盖世，时不利兮骓不逝。',
     hint: '作揖 = 辞别，举高 = 起势',
     cast: [
-      { asset: '持戟武将', x: -190, facing: CAST_FACING, height: 600, lead: true },
-      { asset: '长辫女子', x: 210, facing: CAST_FACING, height: 570 },
+      { asset: '持戟武将', x: -190, facing: 1, height: 600, lead: true },
+      { asset: '长辫女子', x: 210, facing: -1, height: 570 },
     ],
     props: [
       { asset: '宝塔', x: 470, y: -336, height: 330, opacity: 0.44 },
@@ -128,8 +126,8 @@ export const SCENES = [
     caption: '八仙过海，各显神通。',
     hint: '举高 = 腾云，甩手 = 显神通',
     cast: [
-      { asset: '骑鹤仙人', x: -210, facing: CAST_FACING, height: 560, lead: true },
-      { asset: '龙', x: 260, facing: CAST_FACING, height: 360 },
+      { asset: '骑鹤仙人', x: -210, facing: 1, height: 560, lead: true },
+      { asset: '龙', x: 260, facing: -1, height: 360 },
     ],
     props: [
       { asset: '拱桥', x: -30, y: -368, height: 240, opacity: 0.46 },
@@ -315,6 +313,8 @@ export class Show {
 
     // 一只手管一个皮影：左手管左边那个，右手管右边那个
     this.splitHands = true;
+    this.turnLatch = { left: false, right: false };
+    this.turnCool = { left: 0, right: 0 };
     this.walkGain = 0.95; // 手掌横向位置 → 皮影目标 x 的比例
     this.leadMove = 0;
     this.supportMove = 0;
@@ -1140,6 +1140,36 @@ export class Show {
     return clamp(dx / 130, -0.95, 0.95);
   }
 
+  /**
+   * 比耶（食指 + 中指伸出）＝ 让这只手管的皮影转个身。
+   * 朝向平时不会再自动变，所以观众想让它朝另一边时只有这一个手势；
+   * 用上升沿 + 900ms 冷却，免得一直比着就来回翻。
+   */
+  applyTurnGesture(hand, side) {
+    const on = !!(hand && hand.hand && hand.hand.gesture === 'Victory' && (hand.hand.gestureScore || 0) > 0.55);
+    const was = this.turnLatch[side];
+    this.turnLatch[side] = on;
+    if (!on || was) return;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - (this.turnCool[side] || 0) < 900) return;
+    const target = this.puppetForHand(hand);
+    if (!target) return;
+    this.turnCool[side] = now;
+    target.setFacing(-target.facing);
+    this.ui?.toast?.(target.facing > 0 ? '转身 · 朝右' : '转身 · 朝左', 1200);
+    this.audio?.clack?.(0.35);
+  }
+
+  /** 这只手当下该管哪个皮影：左右分开时按手在画面哪半边，否则管主角 */
+  puppetForHand(hand) {
+    if (!hand) return this.lead;
+    if (this.splitHands && this.support) {
+      const pups = [this.lead, this.support].filter(Boolean).sort((p, q) => p.x - q.x);
+      if (pups.length === 2) return hand.stage.x < 0 ? pups[0] : pups[1];
+    }
+    return this.lead;
+  }
+
   updatePuppets(dt, input) {
     const lead = this.lead;
     if (!lead) return;
@@ -1167,6 +1197,10 @@ export class Show {
 
     let move = 0;
     const auto = this.state === STATE.AUTOPLAY;
+    if (!auto && !idle) {
+      this.applyTurnGesture(a.left, 'left');
+      this.applyTurnGesture(a.right, 'right');
+    }
     if (auto) {
       // 自动演绎：程序派活，完全不听手势
       const plan = this.autoPlan;
@@ -1285,7 +1319,7 @@ export class Show {
       1 - Math.exp(-8 * dt),
     );
 
-    // 这里原来"走到画卷边上就回身"。现在取消：所有皮影固定朝同一方向（CAST_FACING），
+    // 这里原来"走到画卷边上就回身"。现在取消：朝向只在开戏时按 cast 定好（主角朝右、配角朝左），
     // 不再根据位置翻面——否则同一出戏里"什么时候同向"是随机的，手势语义就含糊了。
 
     lead.update(dt, {
@@ -1367,7 +1401,7 @@ export class Show {
       }
     }
 
-    // 双人时也保持同一朝向（CAST_FACING），这里只负责别出界（出界夹在 walkLimit 里）
+    // 双人时也不动朝向（想改就比耶），这里只负责别出界（出界夹在 walkLimit 里）
   }
 
   capturePhoto() {
