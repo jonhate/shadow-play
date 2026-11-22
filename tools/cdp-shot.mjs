@@ -119,6 +119,11 @@ await send('Emulation.setDeviceMetricsOverride', {
   mobile: false,
 });
 
+// 注意：无头 Edge 158 + swiftshader 下"开始帧"基本只在截图时才发，
+// 页面里的 rAF 几乎不跑（实测 3 秒 1 次），show.clock 停着。
+// 所以凡是验证"动作判定/剧情推进/走位"的逻辑测试，都要在 STEPS 里手动泵帧：
+//   const pump = (n) => { for (let i = 0; i < n; i++) S.show.update(1/30, performance.now() + i*33); };
+// 试过 startScreencast 和 --disable-background-timer-throttling 都无效，别再绕这条路。
 await send('Page.navigate', { url });
 await new Promise((r) => setTimeout(r, 1500));
 

@@ -1,5 +1,14 @@
 import { clamp, lerp, wrapPi } from './rig.js';
 
+/**
+ * 朝向：一出戏里所有皮影都朝同一个方向（面向画面右侧）。
+ * 旧版是「主角朝右、配角朝左」两两相对，走到画卷边上还会各自回身，
+ * 于是同一出戏里谁跟谁同向是随时变的——观众没法据此理解手势。
+ * 现在统一成一个常量、运行时不转身。万一某个资产本身是镜像画的，
+ * 只把 cast 里那一行的 facing 单独写成 -1 即可。
+ */
+const CAST_FACING = 1;
+
 /** 剧目：六出戏。每出可以带 beats（剧情节拍），节拍里能要求观众做某个动作才继续。 */
 export const SCENES = [
   {
@@ -7,10 +16,10 @@ export const SCENES = [
     name: '月上柳梢',
     subtitle: '才子佳人 · 庭院景',
     caption: '一盏灯，一张皮。两手执签，便有了悲欢。',
-    hint: '两手一合 = 作揖，剧情才往下走',
+    hint: '两手并拢 = 作揖，剧情才往下走',
     cast: [
-      { asset: '长辫女子', x: -190, facing: 1, height: 590, lead: true },
-      { asset: '乌帽书生', x: 210, facing: -1, height: 560 },
+      { asset: '长辫女子', x: -190, facing: CAST_FACING, height: 590, lead: true },
+      { asset: '乌帽书生', x: 210, facing: CAST_FACING, height: 560 },
     ],
     props: [
       { asset: '凉亭', x: -390, y: -320, height: 290, opacity: 0.52 },
@@ -32,8 +41,8 @@ export const SCENES = [
     hint: '双手举高 = 亮相，再举一次换出目',
     duet: true,
     cast: [
-      { asset: '翎冠武生', x: -210, facing: 1, height: 600, lead: true },
-      { asset: '持戟武将', x: 230, facing: -1, height: 580 },
+      { asset: '翎冠武生', x: -210, facing: CAST_FACING, height: 600, lead: true },
+      { asset: '持戟武将', x: 230, facing: CAST_FACING, height: 580 },
     ],
     props: [
       { asset: '宝塔', x: -480, y: -330, height: 355, opacity: 0.5 },
@@ -53,8 +62,8 @@ export const SCENES = [
     caption: '鹤背清风，一管竹签，也能腾云。',
     hint: '双手举高 = 腾云，双拳 = 定格留影',
     cast: [
-      { asset: '骑鹤仙人', x: -220, facing: 1, height: 540, lead: true },
-      { asset: '鹿', x: 300, facing: -1, height: 400 },
+      { asset: '骑鹤仙人', x: -220, facing: CAST_FACING, height: 540, lead: true },
+      { asset: '鹿', x: 300, facing: CAST_FACING, height: 400 },
     ],
     props: [
       { asset: '拱桥', x: 40, y: -372, height: 225, opacity: 0.46 },
@@ -72,10 +81,10 @@ export const SCENES = [
     name: '西厢 · 月下相会',
     subtitle: '改编自《西厢记》· 庭院景',
     caption: '待月西厢下，迎风户半开。',
-    hint: '两手一合 = 作揖，两人见礼',
+    hint: '两手并拢 = 作揖，两人见礼',
     cast: [
-      { asset: '乌帽书生', x: -200, facing: 1, height: 570, lead: true },
-      { asset: '长辫女子', x: 200, facing: -1, height: 580 },
+      { asset: '乌帽书生', x: -200, facing: CAST_FACING, height: 570, lead: true },
+      { asset: '长辫女子', x: 200, facing: CAST_FACING, height: 580 },
     ],
     props: [
       { asset: '凉亭', x: 0, y: -330, height: 320, opacity: 0.45 },
@@ -97,8 +106,8 @@ export const SCENES = [
     caption: '力拔山兮气盖世，时不利兮骓不逝。',
     hint: '作揖 = 辞别，举高 = 起势',
     cast: [
-      { asset: '持戟武将', x: -190, facing: 1, height: 600, lead: true },
-      { asset: '长辫女子', x: 210, facing: -1, height: 570 },
+      { asset: '持戟武将', x: -190, facing: CAST_FACING, height: 600, lead: true },
+      { asset: '长辫女子', x: 210, facing: CAST_FACING, height: 570 },
     ],
     props: [
       { asset: '宝塔', x: 470, y: -336, height: 330, opacity: 0.44 },
@@ -119,8 +128,8 @@ export const SCENES = [
     caption: '八仙过海，各显神通。',
     hint: '举高 = 腾云，甩手 = 显神通',
     cast: [
-      { asset: '骑鹤仙人', x: -210, facing: 1, height: 560, lead: true },
-      { asset: '龙', x: 260, facing: -1, height: 360 },
+      { asset: '骑鹤仙人', x: -210, facing: CAST_FACING, height: 560, lead: true },
+      { asset: '龙', x: 260, facing: CAST_FACING, height: 360 },
     ],
     props: [
       { asset: '拱桥', x: -30, y: -368, height: 240, opacity: 0.46 },
@@ -183,8 +192,8 @@ export const LESSON = [
   },
   {
     id: 'bow',
-    title: '两手一合，作揖',
-    tip: '两只手掌心相对、靠近到一拃宽——这就是作揖，剧情要靠它往下走',
+    title: '两手并拢，作揖',
+    tip: '两只手并排靠到一拃宽、高矮差不多齐平——这就是作揖，剧情要靠它往下走',
     hold: 0.7,
     test: (input) =>
       !!(
@@ -192,8 +201,10 @@ export const LESSON = [
         input.a.right &&
         input.a.left.open &&
         input.a.right.open &&
-        input.pairDist != null &&
-        input.pairDist < 0.14
+        input.pairDx != null &&
+        input.pairDx < 0.36 &&
+        input.pairDy != null &&
+        input.pairDy < 0.16
       ),
   },
   {
@@ -244,13 +255,17 @@ export const LESSON_FINGER = [
   },
   {
     id: 'f-bow',
-    title: '作揖：两手靠近，或一起下压',
-    tip: '捏着签也能做——两只手一起往下沉就是躬身作揖；两手合到一拃宽也算。剧情靠它往下走一句',
+    title: '作揖：两手并拢，齐平',
+    tip: '捏着签也能做——两只手并排靠到一拃宽、高矮差不多齐平，就是作揖。剧情靠它往下走一句',
     hold: 0.8,
     test: (input) =>
       !!(
-        (input.a.left && input.a.right && input.pairDist != null && input.pairDist < 0.18) ||
-        input.bothDown
+        input.a.left &&
+        input.a.right &&
+        input.pairDx != null &&
+        input.pairDx < 0.42 &&
+        input.pairDy != null &&
+        input.pairDy < 0.18
       ),
   },
   {
@@ -665,12 +680,18 @@ export class Show {
     const L = players[0].left;
     const R = players[0].right;
     let pairDist = null;
+    let pairDx = null;
+    let pairDy = null;
     let sway = 0;
     let sameDir = 0;
     if (L && R && L.hand && R.hand) {
       const lh = L.hand.palm || L.hand;
       const rh = R.hand.palm || R.hand;
-      pairDist = Math.hypot(lh.x - rh.x, lh.y - rh.y);
+      // 横向、纵向分量分开留着：作揖现在按「横向够近 + 纵向基本齐平」判，
+      // 只用一个直线距离会把"并排但没贴住"和"一上一下"混成同一个数。
+      pairDx = Math.abs(lh.x - rh.x);
+      pairDy = Math.abs(lh.y - rh.y);
+      pairDist = Math.hypot(pairDx, pairDy);
       // 两手横向速度同向且够快 → 一起挥（甩袖）
       // 注意单位：vx 是「每秒多少个画面宽度」，快甩约 1~2，慢移约 0.2~0.4。
       // 旧版按「像素/秒」写成 260 / 1400，真实挥手永远达不到，只有识别抖动才会偶尔触发。
@@ -683,14 +704,6 @@ export class Show {
     }
     const hv = (p) => (p ? (p.hand ? p.hand.vx || 0 : p.vx || 0) : 0);
     sway = Math.max(Math.abs(hv(L)), Math.abs(hv(R)));
-    // 两手一起向下沉（躬身）。作揖的第二条路：
-    // 手指模式下两只手都在捏着签，把两手合拢既别扭、又会让检测丢手，
-    // 所以"一起下压"也必须能作揖。
-    const vv = (p) => (p ? (p.hand ? p.hand.vy || 0 : p.vy || 0) : 0);
-    const downL = vv(L);
-    const downR = vv(R);
-    const bothDown = !!(L && R && downL > 0.45 && downR > 0.45);
-
     const bothRaised = !!(L && R) && L.stage.y > 200 && R.stage.y > 200;
 
     const result = {
@@ -703,8 +716,9 @@ export class Show {
       anyFist: !!(players[0].left?.fist || players[0].right?.fist),
       bothFist: !!(players[0].left?.fist && players[0].right?.fist),
       bothRaised,
-      bothDown,
       pairDist,
+      pairDx,
+      pairDy,
       sway,
       sameDir,
     };
@@ -716,12 +730,17 @@ export class Show {
     const L = input.a.left;
     const R = input.a.right;
     if (input.bothRaised) return 'flourish'; // 亮相 / 腾云
-    // 作揖有两条路：
-    //   ① 两手靠近（基础模式常用）
-    //   ② 两手一起向下沉 = 躬身（手指模式捏着签时用这条，不会因为两手贴近丢手）
-    if (input.bothDown) return 'bow';
-    const nearLimit = this.fingerMode ? 0.18 : 0.14;
-    const near = input.pairDist != null && input.pairDist < nearLimit;
+    // 作揖：两只手并到「一拃宽」以内、而且高矮差不多齐平（并排、平行）就算。
+    // 以前只卡两掌中心的直线距离（0.14/0.18 × 画面宽），真人手常常差两三厘米
+    // 没真正贴住、又会被 MediaPipe 抖，要么够不着要么一碰就跳 → 现在拆成
+    // 「横向够近」+「纵向基本齐平」两个条件，横向放宽到一拃宽 ≈ 画面宽的 1/3。
+    const nearLimit = this.fingerMode ? 0.40 : 0.36;
+    const levelLimit = this.fingerMode ? 0.16 : 0.14;
+    const near =
+      input.pairDx != null &&
+      input.pairDx < nearLimit &&
+      input.pairDy != null &&
+      input.pairDy < levelLimit;
     if (near && L && R) {
       if (this.fingerMode || (L.open && R.open)) return 'bow';
     }
@@ -968,7 +987,7 @@ export class Show {
     if (this.fingerMode) {
       return (
         {
-          bow: '两手靠近 或 一起下压 · 作揖',
+          bow: '两手并拢、齐平 · 作揖',
           raise: '捏住举高 · 亮相',
           swing: '两手同向快甩 · 甩袖',
           fist: '双手握拳 · 定格',
@@ -1155,7 +1174,6 @@ export class Show {
       flourish = plan.flourish || 0;
       move = this.driveAutoPose(lead, plan.lx, plan);
       if (this.support) {
-        this.support.setFacing(plan.sx >= plan.lx ? 1 : -1);
         this.driveAutoPose(this.support, plan.sx, plan);
       }
     } else if (this.splitHands && this.support && !duo && !idle) {
@@ -1267,16 +1285,8 @@ export class Show {
       1 - Math.exp(-8 * dt),
     );
 
-    // 走到画卷边上就回身（阈值跟着各自动的可行走边界走）
-    if (!auto) {
-      const turn = (p) => {
-        const lim = (p.walkLimit ?? 620) * 0.85;
-        if (p.x > lim) p.setFacing(-1);
-        else if (p.x < -lim) p.setFacing(1);
-      };
-      turn(lead);
-      if (this.support) turn(this.support);
-    }
+    // 这里原来"走到画卷边上就回身"。现在取消：所有皮影固定朝同一方向（CAST_FACING），
+    // 不再根据位置翻面——否则同一出戏里"什么时候同向"是随机的，手势语义就含糊了。
 
     lead.update(dt, {
       idle,
@@ -1293,8 +1303,6 @@ export class Show {
     if (this.support) {
       const mirrorDuet = !!this.scene?.duet && playing && !duo;
       const split = this.splitHands && !duo && !idle && !auto;
-      if (!auto && !split) this.support.setFacing(this.support.x > lead.x ? -1 : 1);
-
       if (auto) {
         // 自动演绎：走位由 driveAutoPose 已经写过，这里只负责把 move 交给 update
       } else if (split) {
@@ -1359,11 +1367,7 @@ export class Show {
       }
     }
 
-    // 双人时两边皮影互相面向，谁都不许出界
-    if (duo) {
-      lead.setFacing(this.support && this.support.x < lead.x ? -1 : 1);
-      this.support.setFacing(this.support.x > lead.x ? -1 : 1);
-    }
+    // 双人时也保持同一朝向（CAST_FACING），这里只负责别出界（出界夹在 walkLimit 里）
   }
 
   capturePhoto() {
