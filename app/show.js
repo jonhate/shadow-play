@@ -252,6 +252,13 @@ export const LESSON_FINGER = [
     test: (input) => !!(input.a.left?.open || input.a.right?.open),
   },
   {
+    id: 'f-hold',
+    title: '握拳，把这只手定住',
+    tip: '和手掌模式一样：捏着签的时候握起拳头，这只手就定在原地不跟手了；松开拳头又回到捏签跟手',
+    hold: 0.6,
+    test: (input) => !!(input.a.left?.fist || input.a.right?.fist),
+  },
+  {
     id: 'f-bow',
     title: '作揖：两手并拢，齐平',
     tip: '捏着签也能做——两只手并排靠到一拃宽、高矮差不多齐平，就是作揖。剧情靠它往下走一句',
@@ -612,6 +619,9 @@ export class Show {
         //      转腕用"相对角度"：握住那一刻的角度当零点，之后只算转动量，
         //      这样手举高、掌面转向都不会让皮影手腕乱转。
         const gripped = h.pinch != null && h.pinch < this.gripThreshold;
+        // 握拳 = 定住（和手掌模式一致）。但捏住时拇指食指本来就贴在一起，
+        // 几何上很像拳，所以"拳"只认 MediaPipe 的手势分类，免得执签的瞬间被当成定住。
+        const fist = h.gesture === 'Closed_Fist' && (h.gestureScore || 0) > 0.4;
         const pt = h.pinchPoint || h.palm;
         const mode = this.handMode(h);
         if (gripped) {
@@ -625,8 +635,8 @@ export class Show {
             : 0;
         p[side] = {
           stage: this.handToStage({ palm: pt }),
-          // fist 仍然取手势分类：手指模式里"双拳定格"这类全局动作还要能用
-          fist: mode === 'fist',
+          // fist 取手势分类：手指模式里握拳既是"定住这只手"，也是"双拳定格留影"
+          fist,
           open: gripped, // 手指模式里 open = 捏住（驱动手臂用）
           released: !gripped,
           roll: relRoll,
@@ -1108,11 +1118,18 @@ export class Show {
     puppet.clearHandTarget(other);
 
     if (this.fingerMode) {
-      puppet.setHeld(armSide, false);
-      if (hand.open) puppet.setHandTarget(armSide, aim, { weight: 1 });
-      else puppet.clearHandTarget(armSide);
-      // 转腕只在"握着签、且不在亮相"时生效；亮相时手腕要稳稳举起来
-      const applying = hand.open && this.posture !== 'flourish';
+      // 握拳 = 定住这只手（和手掌模式一样）；否则捏住跟手、松开垂落
+      const wasHeld = !!(puppet.armTargets && puppet.armTargets[armSide] && puppet.armTargets[armSide].held);
+      puppet.setHeld(armSide, !!hand.fist);
+      if (hand.fist) {
+        if (!wasHeld) this.audio?.cueSfx?.('hold');
+      } else if (hand.open) {
+        puppet.setHandTarget(armSide, aim, { weight: 1 });
+      } else {
+        puppet.clearHandTarget(armSide);
+      }
+      // 转腕只在"捏着签、且没在定住、也不在亮相"时生效
+      const applying = hand.open && !hand.fist && this.posture !== 'flourish';
       const r = applying ? (hand.roll || 0) * this.rollScale : null;
       if (armSide === 'left') puppet.rollL = r;
       else puppet.rollR = r;
@@ -1126,12 +1143,9 @@ export class Show {
       }
     }
 
-    // 手掌左右移动 → 这个皮影跟着走（握拳/松手时站住）
-    if (this.fingerMode) {
-      if (!hand.open) return 0; // 松开签就不走
-    } else if (hand.fist) {
-      return 0;
-    }
+    // 手掌左右移动 → 这个皮影跟着走（握拳定住 / 松手时站住）
+    if (hand.fist) return 0; // 握拳＝定住，站住不动（两种模式一致）
+    if (this.fingerMode && !hand.open) return 0; // 手指模式：松开签就不走
     // 目标也限制在画卷内：手移出画框也不会把皮影拽出去
     const limit = puppet.walkLimit ?? 480;
     const targetX = clamp(hand.stage.x * this.walkGain, -limit, limit);
@@ -1260,15 +1274,17 @@ export class Show {
           continue;
         }
         if (this.fingerMode) {
-          // 方案一：捏住 → 跟握点走 + 转腕；松开 → 放签下垂
-          if (h.open) {
-            lead.setHeld(armSide, false);
+          // 方案一：捏住 → 跟握点走 + 转腕；握拳 → 定住；松开 → 放签下垂
+          const wasHeld = !!(lead.armTargets && lead.armTargets[armSide] && lead.armTargets[armSide].held);
+          lead.setHeld(armSide, !!h.fist);
+          if (h.fist) {
+            if (!wasHeld) this.audio?.cueSfx?.('hold');
+          } else if (h.open) {
             lead.setHandTarget(armSide, h.stage, { weight: 1 });
           } else {
-            lead.setHeld(armSide, false);
             lead.clearHandTarget(armSide);
           }
-          const applying = h.open && this.posture !== 'flourish';
+          const applying = h.open && !h.fist && this.posture !== 'flourish';
           const r = applying ? (h.roll || 0) * this.rollScale : null;
           if (armSide === 'left') rollL = r;
           else rollR = r;

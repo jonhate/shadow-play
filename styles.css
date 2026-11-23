@@ -667,6 +667,7 @@ body.finger-mode .hint-finger { display: flex; }
 body.finger-mode .hint-basic { display: none; }
 /* 手指模式下要亮的提示 */
 body.finger-mode #app[data-state='play'] .hint[data-hint='grab'],
+body.finger-mode #app[data-state='play'] .hint[data-hint='fist'],
 body.finger-mode #app[data-state='play'] .hint[data-hint='bow'],
 body.finger-mode #app[data-state='play'] .hint[data-hint='raise'],
 body.finger-mode #app[data-state='play'] .hint[data-hint='freeze'],

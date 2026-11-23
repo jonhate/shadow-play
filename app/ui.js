@@ -127,11 +127,12 @@ export class UI {
     if (!hud) return;
     const kind = (h) => {
       if (!h) return 'none';
-      if (fingerMode) return h.open ? 'track' : 'hold';
+      // 手指模式：握拳＝定住、捏住＝执签跟手、都没有＝松开
+      if (fingerMode) return h.fist ? 'hold' : h.open ? 'track' : 'idle';
       return h.fist ? 'hold' : h.open ? 'track' : 'idle';
     };
     const text = fingerMode
-      ? { track: '捏住·执签', hold: '松开', idle: '—', none: '未见' }
+      ? { track: '捏住·执签', hold: '握拳·定住', idle: '松开', none: '未见' }
       : { track: '跟手', hold: '定住', idle: '半开', none: '未见' };
     const L = kind(input.a && input.a.left);
     const R = kind(input.a && input.a.right);
