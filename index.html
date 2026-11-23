@@ -310,12 +310,70 @@
       <div class="loading" id="loading">
         <div class="loading-inner">
           <div class="loading-lantern">
-            <svg viewBox="0 0 120 160" aria-hidden="true">
-              <rect x="46" y="6" width="28" height="8" rx="3" />
-              <path d="M30 24h60l10 52-10 52H30L20 76z" />
-              <path d="M40 44v64M60 38v76M80 44v64" class="ribs" />
-              <rect x="52" y="132" width="16" height="14" rx="3" />
-              <path d="M60 146v12" />
+            <svg viewBox="0 0 160 224" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <radialGradient id="opening-halo"><stop stop-color="#ffd487" stop-opacity=".32" /><stop offset=".62" stop-color="#e99339" stop-opacity=".09" /><stop offset="1" stop-color="#e99339" stop-opacity="0" /></radialGradient>
+                <radialGradient id="opening-light" cx="48%" cy="47%" r="70%"><stop stop-color="#fff3c5" /><stop offset=".48" stop-color="#ffc46d" /><stop offset=".84" stop-color="#dd642e" /><stop offset="1" stop-color="#8b2b1f" /></radialGradient>
+                <linearGradient id="opening-gold" x1="0" y1="0" x2="1" y2=".25"><stop stop-color="#80421f" /><stop offset=".25" stop-color="#f4c47c" /><stop offset=".5" stop-color="#a65a2b" /><stop offset=".8" stop-color="#f7d99c" /><stop offset="1" stop-color="#77401f" /></linearGradient>
+                <linearGradient id="opening-lacquer"><stop stop-color="#531a18" /><stop offset=".38" stop-color="#b54226" /><stop offset=".72" stop-color="#92241c" /><stop offset="1" stop-color="#4f1c1a" /></linearGradient>
+                <linearGradient id="opening-silk"><stop stop-color="#74291e" /><stop offset=".25" stop-color="#ec8140" /><stop offset=".52" stop-color="#ffe3a2" /><stop offset=".77" stop-color="#e3a454" /><stop offset="1" stop-color="#83291d" /></linearGradient>
+                <linearGradient id="opening-petal" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#d76037" /><stop offset=".52" stop-color="#a52c23" /><stop offset="1" stop-color="#69221e" /></linearGradient>
+                <linearGradient id="opening-tassel"><stop stop-color="#56191b" /><stop offset=".5" stop-color="#c44a32" /><stop offset="1" stop-color="#62201c" /></linearGradient>
+                <filter id="opening-shadow" x="-30%" y="-30%" width="160%" height="175%"><feDropShadow dx="0" dy="3" stdDeviation="3.5" flood-color="#160804" flood-opacity=".62" /></filter>
+              </defs>
+              <ellipse class="lantern-aura" cx="80" cy="109" rx="75" ry="96" fill="url(#opening-halo)" stroke="none" />
+              <g class="lantern-craft" filter="url(#opening-shadow)">
+                <!-- 吊绳与盘长结 -->
+                <path d="M80 2v23" stroke="#d59c54" stroke-width="2" fill="none" />
+                <path d="M80 13c-11-13-19 5-7 9 12 5 23-11 13-15-10-5-21 13-9 17 10 4 19-11 3-11s-7 21 0 16 7-16-4-13" fill="none" stroke="#bf4e34" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="80" cy="29" r="4.4" fill="url(#opening-gold)" stroke="#5c2a17" stroke-width="1" />
+                <path d="M80 33v10" stroke="#e8ae64" stroke-width="2" />
+                <!-- 顶冠、雕云角和镂空檐口 -->
+                <path d="M32 54Q28 42 16 45Q9 47 16 53Q21 44 33 52M128 54Q132 42 144 45Q151 47 144 53Q139 44 127 52" fill="none" stroke="url(#opening-gold)" stroke-width="4.5" stroke-linecap="round" />
+                <path d="M27 58Q42 45 60 42L72 37H88L100 42Q118 45 133 58L120 65H40Z" fill="url(#opening-lacquer)" stroke="url(#opening-gold)" stroke-width="3.3" stroke-linejoin="round" />
+                <path d="M33 56Q47 50 59 48Q68 43 80 46Q92 43 101 48Q113 50 127 56" fill="none" stroke="#f2c57d" stroke-width="1.5" />
+                <path d="M41 58q7-10 14 0 8-10 15 0 10-12 20 0 7-10 15 0 7-10 14 0" fill="none" stroke="#eec17a" stroke-width="1.45" />
+                <path d="M39 60h82v10H39z" fill="url(#opening-gold)" stroke="#6b341e" stroke-width="1.2" />
+                <path d="M43 63h74v4H43z" fill="#7f2c21" stroke="#f7d28b" stroke-width="0.7" />
+                <!-- 屏心丝绢、六角侧棱与光晕 -->
+                <path d="M40 70H120L127 141 110 158H50L33 141Z" fill="#692519" stroke="url(#opening-gold)" stroke-width="3.5" stroke-linejoin="round" />
+                <path d="M44 73H116L120 138 107 154H53L40 138Z" fill="url(#opening-silk)" stroke="#e9b774" stroke-width="1.6" />
+                <path d="M44 73L57 78V150L40 138Z" fill="url(#opening-lacquer)" fill-opacity=".77" stroke="#f1bc79" stroke-width="1.6" />
+                <path d="M116 73L103 78V150L120 138Z" fill="url(#opening-lacquer)" fill-opacity=".77" stroke="#f1bc79" stroke-width="1.6" />
+                <path d="M57 77H103V150H57Z" fill="url(#opening-light)" stroke="#8e3f25" stroke-width="2.4" />
+                <path d="M60 80H100V147H60Z" fill="none" stroke="#ffe1a1" stroke-width="1" />
+                <path d="M61 83h9v4h-5v6m34-10h-9v4h5v6m-34 51h9v-4h-5v-6m34 10h-9v-4h5v-6" fill="none" stroke="#8a3a22" stroke-width="1.8" stroke-linejoin="miter" />
+                <path d="M50 76v67M110 76v67" stroke="#f4c77c" stroke-width="1.3" />
+                <path d="M43 84h11m-11 13h11m-11 13h11m-11 13h11m-11 13h11m52-52h11m-11 13h11m-11 13h11m-11 13h11m-11 13h11" stroke="#f7cf8d" stroke-width=".9" stroke-opacity=".86" />
+                <!-- 剪纸牡丹，低调贴合皮影主题 -->
+                <g transform="translate(80 112)">
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(0)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(45)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(90)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(135)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(180)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(225)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(270)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                                <ellipse cx="0" cy="-16" rx="7" ry="12" transform="rotate(315)" fill="url(#opening-petal)" stroke="#ffe0a0" stroke-width="0.9" />
+                  <circle r="9.5" fill="#e7ae5d" stroke="#762a20" stroke-width="1.6" />
+                  <circle r="4.7" fill="#ae3c2b" stroke="#fff0bf" stroke-width="1.2" />
+                  <circle r="1.8" fill="#ffe6a5" stroke="none" />
+                  <path d="M-20 17q-11 5-10 17 11-2 15-14M20 17q11 5 10 17-11-2-15-14" fill="#a9442b" stroke="#edbd77" stroke-width="1.1" />
+                </g>
+                <path d="M63 93q-5-5-9-4M97 93q5-5 9-4M63 132q-5 5-9 4M97 132q5 5 9 4" fill="none" stroke="#e4a866" stroke-width="1.2" />
+                <!-- 下沿金饰、璎珞与分层流苏 -->
+                <path d="M33 142q24 10 47 10t47-10l-10 19q-37 16-74 0Z" fill="url(#opening-gold)" stroke="#71341d" stroke-width="2.3" />
+                <path d="M47 153q7 9 14 0 7 9 14 0 7 9 14 0 7 9 14 0 7 9 14 0" fill="none" stroke="#7d351f" stroke-width="1.7" />
+                <path d="M44 161Q80 180 116 161" fill="none" stroke="#ffdd94" stroke-width="1.2" />
+                <path d="M80 173v19M48 163v13M112 163v13" stroke="#dca35b" stroke-width="2" fill="none" />
+                <circle cx="80" cy="182" r="4" fill="url(#opening-gold)" stroke="#71331d" stroke-width="1" />
+                <path d="M70 189q10-12 20 0-10 12-20 0ZM70 189q10 12 20 0" fill="#9d3024" stroke="#eabb79" stroke-width="1.7" />
+                <circle cx="80" cy="199" r="3.7" fill="#ebba70" stroke="#68311f" stroke-width="1" />
+                <path d="M69 203h22l4 18q-15 5-30 0Z" fill="url(#opening-tassel)" stroke="#f1b36a" stroke-width=".8" />
+                <path d="M69 206l-3 15m8-15-2 17m7-17v17m7-17 2 17m3-17 4 15" fill="none" stroke="#f9b875" stroke-width="1.1" stroke-linecap="round" />
+                <path d="M45 175h6l3 18-12 0ZM109 175h6l3 18-12 0Z" fill="url(#opening-tassel)" stroke="#eeac67" stroke-width=".8" />
+                <path d="M45 180v12m4-12v12m62-12v12m4-12v12" fill="none" stroke="#f0b57d" stroke-width=".9" />
+              </g>
             </svg>
           </div>
           <div class="loading-title">掌中戲</div>

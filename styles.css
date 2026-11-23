@@ -954,19 +954,32 @@ body.debug .debug-panel { display: block; }
   text-align: center;
 }
 
+/* 启幕宫灯：独立 SVG 装饰纹样，保持戏台灯色与古典质感。 */
 .loading-lantern svg {
-  width: clamp(60px, 6vw, 110px);
+  display: block;
+  width: clamp(118px, 11vw, 190px);
+  max-height: min(34vh, 216px);
   height: auto;
-  fill: rgba(201, 162, 39, 0.16);
-  stroke: rgba(232, 205, 122, 0.75);
-  stroke-width: 1.2;
-  animation: swing 3.2s ease-in-out infinite;
-  transform-origin: 50% 4%;
+  overflow: visible;
+  fill: none;
+  stroke: none;
+  animation: swing 4.2s ease-in-out infinite;
+  transform-origin: 50% 2%;
+  filter: drop-shadow(0 7px 14px rgba(0, 0, 0, 0.34));
 }
-.loading-lantern .ribs { stroke: rgba(232, 205, 122, 0.35); }
+.loading-lantern .lantern-aura {
+  animation: lantern-glow 4.2s ease-in-out infinite;
+}
 @keyframes swing {
-  0%, 100% { transform: rotate(-3deg); }
-  50% { transform: rotate(3deg); }
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(2deg); }
+}
+@keyframes lantern-glow {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-lantern svg, .loading-lantern .lantern-aura { animation: none; }
 }
 
 .loading-title {
