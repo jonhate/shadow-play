@@ -254,7 +254,7 @@ export const LESSON_FINGER = [
   {
     id: 'f-hold',
     title: '握拳，把这只手定住',
-    tip: '和手掌模式一样：捏着签的时候握起拳头，这只手就定在原地不跟手了；松开拳头又回到捏签跟手',
+    tip: '和手掌模式一样：握起拳头，这只手就停在原地不跟手；松开又回到捏签跟手。两只手都握拳＝定格合影',
     hold: 0.6,
     test: (input) => !!(input.a.left?.fist || input.a.right?.fist),
   },
@@ -621,7 +621,12 @@ export class Show {
         const gripped = h.pinch != null && h.pinch < this.gripThreshold;
         // 握拳 = 定住（和手掌模式一致）。但捏住时拇指食指本来就贴在一起，
         // 几何上很像拳，所以"拳"只认 MediaPipe 的手势分类，免得执签的瞬间被当成定住。
-        const fist = h.gesture === 'Closed_Fist' && (h.gestureScore || 0) > 0.4;
+        // 必须是"真握拳"：①分类 Closed_Fist 且分够高；②拇指食指明显分开（pinch 大）。
+        // 少了②，捏着签的时候手指收得也像拳，就会出现"手一动就合影"。
+        const fist =
+          h.gesture === 'Closed_Fist' &&
+          (h.gestureScore || 0) > 0.6 &&
+          (h.pinch == null || h.pinch > 0.8);
         const pt = h.pinchPoint || h.palm;
         const mode = this.handMode(h);
         if (gripped) {
