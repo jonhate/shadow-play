@@ -1,8 +1,8 @@
-import { loadWoop } from './woop.js?release=art36-20261124';
-import { Stage } from './stage.js?release=art36-20261124';
+import { loadWoop } from './woop.js?release=art36-20261124b';
+import { Stage } from './stage.js?release=art36-20261124b';
 import { GestureInput } from './gesture.js';
 import { createModelLoader } from './model-loader.js';
-import { Show, STATE, SCENES } from './show.js?release=art36-20261124';
+import { Show, STATE, SCENES } from './show.js?release=art36-20261124b';
 import { UI } from './ui.js';
 import { Audio } from './audio.js';
 
@@ -62,6 +62,15 @@ async function boot() {
   let assetFellBack = false;
   const assetSource = () => (ASSET_BASE ? ASSET_BASE : assetFellBack ? '同源（CDN 不可用，已回退）' : '同源');
 
+  // 出目美术包（每出戏专属皮影 × silhouette/carved/painted 三档贴图）另放一个镜像仓库：
+  // 单包 2–8MB，走 GitHub Pages 国内直连实测 2–10KB/s（8MB 要几十分钟），只能走 jsDelivr。
+  // 取不到就依次退同源、退「本出目没有美术包」（用基础皮影照常演）——美术包永远不许把演卡死。
+  // ?art=<url> 可临时换源，?art=0 强制走同源。
+  const ART_BASE_DEFAULT = 'https://cdn.jsdelivr.net/gh/jonhate/shadow-play-art@main';
+  const artParam = params.get('art');
+  let ART_BASE = artParam === '0' ? '' : artParam ? artParam.replace(/\/$/, '') : ART_BASE_DEFAULT;
+  const artSource = () => (ART_BASE ? ART_BASE : '同源');
+
   // 资源索引：优先走 ASSET_BASE（国内存储/CDN）；连不上或没配 CORS 就自动回退同源，
   // 绝不因为"加速"把整站搞成白屏。
   // 必须带超时：CDN 被墙时的典型表现不是快速报错，而是长时间挂起（DNS 卡住或
@@ -77,7 +86,7 @@ async function boot() {
   };
   let catalog;
   try {
-    const r = await fetchWithTimeout(assetUrl('puppets/index.json?release=art36-20261124'));
+    const r = await fetchWithTimeout(assetUrl('puppets/index.json?release=art36-20261124b'));
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     catalog = await r.json();
   } catch (err) {
@@ -85,16 +94,62 @@ async function boot() {
     console.warn('[boot] 资源前缀不可用，回退同源（检查 CDN/对象存储的 CORS 是否允许本站）', err);
     ASSET_BASE = '';
     assetFellBack = true;
-    catalog = await fetch('./puppets/index.json?release=art36-20261124').then((r) => r.json());
+    catalog = await fetch('./puppets/index.json?release=art36-20261124b').then((r) => r.json());
   }
   // The CDN may still publish an older catalog. Artwork annotations belong to
   // this application release, while the legacy large files can keep using CDN.
   const artworkCatalog = ASSET_BASE
-    ? await fetchWithTimeout('./puppets/index.json?release=art36-20261124').then(response => {
+    ? await fetchWithTimeout('./puppets/index.json?release=art36-20261124b').then(response => {
       if (!response.ok) throw new Error(`美术索引读取失败（HTTP ${response.status}）`);
       return response.json();
     }) : catalog;
   const sceneArtById = new Map(artworkCatalog.map(item => [item.id, item.sceneArt || {}]));
+  // 出目包的三条硬规矩（都是踩过的坑）：
+  //  ① 取不到不许把演卡死：最多等 ART_WAIT_BUDGET，到点先演基础皮影；
+  //  ② 到点之后下载不取消：包一落地就进缓存，下一次进这一出直接换装（不白下那几 MB）；
+  //  ③ 只有主源"连不上"才摘主源；超时只判这一个包，HTTP 4xx 只说明这个包漏传。
+  const ART_WAIT_BUDGET = 20000; // 开演前最多为美术包等这么久，到点先演基础皮影
+  const PACK_FETCH_BUDGET = { cdn: 90000, same: 20000 };
+  const artMisses = new Set();
+  const artInflight = new Map();
+  let artHealthy = Boolean(ART_BASE);
+
+  const fetchScenePack = async (file, item) => {
+    const sources = [...(ART_BASE ? [ART_BASE] : []), ''];
+    let lastError = null;
+    for (const base of sources) {
+      const url = base ? `${base}/puppets/${file}` : `./puppets/${file}`;
+      const budget = base ? PACK_FETCH_BUDGET.cdn : PACK_FETCH_BUDGET.same;
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), budget);
+      try {
+        return await loadWoop(url, item, { signal: ctl.signal });
+      } catch (error) {
+        lastError = error;
+        const message = String((error && error.message) || error);
+        console.warn(`[boot] 出目包读取失败（${base ? 'CDN' : '同源'}，上限 ${budget / 1000}s）`, file, message);
+        // 连不上（DNS/连接被拒/网络中断）才摘掉主源；HTTP 报错与超时都只算这一个包
+        if (base && !/HTTP \d{3}/.test(message) && !/abort/i.test(message)) ART_BASE = '';
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    artMisses.add(file);
+    artHealthy = Boolean(ART_BASE);
+    throw lastError;
+  };
+
+  // 同一个包只下一次（观众连着切出目不会重复下载）
+  const loadScenePack = (file, item) => {
+    if (!artInflight.has(file)) {
+      artInflight.set(file, fetchScenePack(file, item).catch((error) => {
+        artInflight.delete(file);
+        throw error;
+      }));
+    }
+    return artInflight.get(file);
+  };
+
   const assets = {};
   const loadAsset = async (item) => {
     const asset = await loadWoop(assetUrl(`puppets/${item.file}`), item);
@@ -102,15 +157,31 @@ async function boot() {
     // swaps materials on the live rig; loading another scene may select a pack.
     const pending = new Map();
     asset.sceneArtwork = {};
-    asset.loadSceneArtwork = (sceneId) => {
+    asset.loadSceneArtwork = (sceneId, { wait = ART_WAIT_BUDGET } = {}) => {
       const file = sceneArtById.get(item.id)?.[sceneId]?.file;
       if (!file) return Promise.resolve(null);
-      if (!pending.has(sceneId)) pending.set(sceneId,
-        loadWoop(`./puppets/${file}`, item).then(pack => {
-          asset.sceneArtwork[sceneId] = pack;
+      if (artMisses.has(file)) return Promise.resolve(null);
+      if (!pending.has(sceneId)) {
+        pending.set(sceneId, loadScenePack(file, item).then((pack) => {
+          asset.sceneArtwork[sceneId] = pack; // 落地的包给下一次进这一出用
           return pack;
-        }).catch(error => { pending.delete(sceneId); throw error; }));
-      return pending.get(sceneId);
+        }).catch((error) => {
+          pending.delete(sceneId);
+          throw error;
+        }));
+      }
+      const ready = pending.get(sceneId);
+      if (!wait) return ready; // 后台预取：不设等待上限，慢慢下
+      // 到点就先演基础皮影，下载继续跑（ready 不会被取消）
+      return Promise.race([ready, new Promise((resolve) => setTimeout(() => resolve(null), wait))])
+        .then((value) => {
+          if (value === null) console.info('[boot] 出目包还没下完，先演基础皮影，下完自动进缓存', file);
+          return value;
+        })
+        .catch((error) => {
+          console.warn('[show] 出目包取不到，先演基础皮影', file, error);
+          return null;
+        });
     };
     return asset;
   };
@@ -144,6 +215,21 @@ async function boot() {
         assets[item.name] = await loadAsset(item);
       } catch (err) {
         console.warn('[boot] 资产加载失败', item.name, err);
+      }
+    }
+    // 皮影都补齐了再预取出目美术包（串行，别抢第一出戏的带宽）：
+    // 等真演到那一出时包已经在缓存里，切出目就不会站在「装台」上等下载。
+    // 开演时没赶上的包在这里再试一次（后台，观众看不到等待）。
+    artMisses.clear();
+    for (const scene of SCENES) {
+      if (!ART_BASE && !artHealthy) break;
+      for (const c of scene.cast || []) {
+        if (!assets[c.asset]) continue;
+        try {
+          await assets[c.asset].loadSceneArtwork(scene.id, { wait: 0 });
+        } catch {
+          /* 取不到就继续用基础皮影，loadScenePack 已经记过日志 */
+        }
       }
     }
   })();
@@ -692,6 +778,7 @@ async function boot() {
     ui.setDebug([
       `URL      : ${location.search || '(none)'}`,
       `assets   : ${assetSource()}`,
+      `artwork  : ${artSource()}${artHealthy ? '' : '  (拿不到美术包，用基础皮影)'}${artMisses.size ? `  取不到: ${[...artMisses].join(', ')}` : ''}`,
       `camera   : ${gesture.running ? 'running' : 'off'}${cameraError ? '  err=' + (cameraError.name || '') : awaitingCamera ? '  waiting-click' : ''}`,
       `model    : ${gesture.ready ? 'ready' : modelGate.status}  delegate=${gesture.delegate || '-'}${modelGate.fallbackUsed ? '  (已回退同源)' : ''}`,
       `inference: ${gesture.frameMs ? Math.round(gesture.frameMs) + ' ms/frame' : '-'}`,
@@ -709,7 +796,7 @@ async function boot() {
 
   // 调试/集成用
   window.SHADOWPLAY = { stage, show, gesture, ui, audio, assets, SCENES, STATE, manual, assetSource, modelGate };
-  if (params.get('qa') === '1') import('../qa/runner.js').then((m) => m.installQA(window.SHADOWPLAY));
+  if (params.get('qa') === '1') import('../qa/runner.js?release=art36-20261124b').then((m) => m.installQA(window.SHADOWPLAY));
   if (params.get('still') === '1') show.still = true;
   if (params.get('skin')) show.applySkin(params.get('skin'));
   else if (params.get('paint') === '1') show.applySkin('painted');

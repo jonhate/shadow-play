@@ -97,8 +97,8 @@ function manifestValue(obj, ...names) {
   return undefined;
 }
 
-export async function loadWoop(url, meta = {}) {
-  const res = await fetch(url);
+export async function loadWoop(url, meta = {}, { signal } = {}) {
+  const res = await fetch(url, signal ? { signal } : undefined);
   if (!res.ok) throw new Error(`无法读取皮影包：${url}（HTTP ${res.status}）`);
   const files = unzipSync(new Uint8Array(await res.arrayBuffer()));
 

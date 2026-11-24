@@ -397,8 +397,12 @@ export class Show {
         console.warn('[show] 资产加载失败', name, err);
       }
     }
+    // 出目美术包取不到时不能拖垮整出戏：拿不到就用基础皮影照常演
     await Promise.all((scene.cast || []).map(c =>
-      this.assets[c.asset]?.loadSceneArtwork?.(scene.id)));
+      Promise.resolve(this.assets[c.asset]?.loadSceneArtwork?.(scene.id)).catch((error) => {
+        console.warn('[show] 出目美术包取不到，本出目先用基础皮影', c.asset, scene.id, error);
+        return null;
+      })));
   }
 
   async loadScene(index, { silent = false } = {}) {

@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three/three.module.js';
-import { Puppet } from './puppet.js?release=art36-20261124';
+import { Puppet } from './puppet.js?release=art36-20261124b';
 import { A, buildRig, clamp } from './rig.js';
 
 /** 舞台：正交相机 + 灯箱影幕。背景交给 CSS/SVG，WebGL 只画皮影与景片。 */
