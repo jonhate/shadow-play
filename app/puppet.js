@@ -28,6 +28,11 @@ export class Puppet {
     this.still = !!opts.still; // true = 完全静止（验收对照用）
 
     this.partObjects = new Map();
+    // This approved painted atlas puts the front wrist on the sleeve's outer
+    // edge. Seat its cuff inside the sleeve; the shared IK anchors stay intact.
+    this.paintedWristInset = rig.manifest.artworkVersion === 'act01-approved-source-anatomy-v3'
+      && rig.manifest.metadata?.uid === '32f2de22-8f4b-4cf9-adc0-2ccecbed9c4d'
+      ? { hand: rig.roles.arms.left.hand, sleeve: rig.roles.arms.left.lower } : null;
     const maxZ = Math.max(...rig.parts.map((p) => p.zIndex));
     for (const p of rig.parts) {
       const geo = quadGeometry(p.width, p.height);
@@ -172,6 +177,11 @@ export class Puppet {
     this.painted = mode === 'painted';
     for (const o of this.partObjects.values()) {
       o.mesh.material = mode === 'painted' ? o.paint : mode === 'carved' ? o.carved : o.mat;
+      if (o.part.id === this.paintedWristInset?.hand) {
+        // Draw the inserted cuff behind the sleeve, including while rolling.
+        const sleeve = this.partObjects.get(this.paintedWristInset.sleeve);
+        o.mesh.renderOrder = mode === 'painted' ? sleeve.part.zIndex - 0.5 : o.part.zIndex;
+      }
     }
   }
 
@@ -357,11 +367,13 @@ export class Puppet {
     for (const [id, obj] of this.partObjects) {
       const rec = this.matrices.get(id);
       if (!rec) continue;
-      const F = rec.F;
+      const insetWrist = this.skin === 'painted' && id === this.paintedWristInset?.hand;
+      const F = insetWrist ? A.mul(rec.F, A.translate(-6, 8)) : rec.F;
+      const z = insetWrist ? this.partObjects.get(this.paintedWristInset.sleeve).z - 0.025 : obj.z;
       this._tmp.set(
         F.a, -F.c, 0, F.tx,
         -F.b, F.d, 0, -F.ty,
-        0, 0, 1, obj.z,
+        0, 0, 1, z,
         0, 0, 0, 1,
       );
       obj.mesh.matrix.copy(this._tmp);
