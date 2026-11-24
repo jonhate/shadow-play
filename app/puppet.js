@@ -32,7 +32,7 @@ export class Puppet {
     // edge. Seat its cuff inside the sleeve; the shared IK anchors stay intact.
     this.paintedWristInset = rig.manifest.artworkVersion === 'act01-approved-source-anatomy-v3'
       && rig.manifest.metadata?.uid === '32f2de22-8f4b-4cf9-adc0-2ccecbed9c4d'
-      ? { hand: rig.roles.arms.left.hand, sleeve: rig.roles.arms.left.lower } : null;
+      ? { hand: rig.roles.arms.left.hand, sleeve: rig.roles.arms.left.lower, x: -5, y: 30 } : null;
     const maxZ = Math.max(...rig.parts.map((p) => p.zIndex));
     for (const p of rig.parts) {
       const geo = quadGeometry(p.width, p.height);
@@ -368,7 +368,15 @@ export class Puppet {
       const rec = this.matrices.get(id);
       if (!rec) continue;
       const insetWrist = this.skin === 'painted' && id === this.paintedWristInset?.hand;
-      const F = insetWrist ? A.mul(rec.F, A.translate(-6, 8)) : rec.F;
+      // The socket belongs to the sleeve, not to the rotating palm. Applying
+      // this offset in hand space lets the gold wrist stub swing above the hem.
+      const sleeveFrame = insetWrist ? this.matrices.get(this.paintedWristInset.sleeve).T : null;
+      const seat = this.paintedWristInset;
+      const F = insetWrist ? {
+        ...rec.F,
+        tx: rec.F.tx + sleeveFrame.a * seat.x + sleeveFrame.c * seat.y,
+        ty: rec.F.ty + sleeveFrame.b * seat.x + sleeveFrame.d * seat.y,
+      } : rec.F;
       const z = insetWrist ? this.partObjects.get(this.paintedWristInset.sleeve).z - 0.025 : obj.z;
       this._tmp.set(
         F.a, -F.c, 0, F.tx,
@@ -408,7 +416,10 @@ export class Puppet {
 
     const rig = this.rig;
     const pts = [];
-    pts.push(rig.arms.left ? posed(rig.arms.left.lower.id, rig.arms.left.wrist) : null);
+    const leftWrist = rig.arms.left?.wrist;
+    const seatedLeftWrist = leftWrist && this.skin === 'painted' && this.paintedWristInset
+      ? { x: leftWrist.x + this.paintedWristInset.x, y: leftWrist.y + this.paintedWristInset.y } : leftWrist;
+    pts.push(rig.arms.left ? posed(rig.arms.left.lower.id, seatedLeftWrist) : null);
     pts.push(rig.arms.right ? posed(rig.arms.right.lower.id, rig.arms.right.wrist) : null);
     const torso = rig.torsoPart;
     pts.push(torso ? posed(torso.id, A.apply(torso.rest, torso.width / 2, torso.height * 0.15)) : null);

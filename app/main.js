@@ -1,5 +1,5 @@
 import { loadWoop } from './woop.js?release=art36-20261124b';
-import { Stage } from './stage.js?release=art36-20261124c';
+import { Stage } from './stage.js?release=art36-20261124d';
 import { GestureInput } from './gesture.js';
 import { createModelLoader } from './model-loader.js';
 import { Show, STATE, SCENES } from './show.js?release=art36-20261124b';
