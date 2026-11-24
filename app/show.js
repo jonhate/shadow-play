@@ -164,7 +164,16 @@ export const STATE = {
   ENDING: 'ending',
 };
 
-/** 教学关：每一步都要“真的做出来”才过 */
+/** 动作教学结束后的快捷键说明：无需识别手势，自动进入演出。 */
+const SHORTCUT_LESSON = {
+  id: 'shortcuts',
+  title: '更多玩法 · G / K',
+  tip: 'G 键：切换手掌模式 / 手指模式。K 键：循环切换灯箱剪影、剪影·镂空、套色皮影。8 秒后自动开演。',
+  hold: 8,
+  test: () => true,
+};
+
+/** 教学关：动作步骤要真的做出来，最后一步介绍快捷键 */
 export const LESSON = [
   {
     id: 'raise',
@@ -212,6 +221,7 @@ export const LESSON = [
     hold: 0.7,
     test: (input) => input.bothRaised,
   },
+  SHORTCUT_LESSON,
 ];
 
 /** 手指模式（方案一）的教学关：教“捏住 = 执签 / 松开 = 放签 / 搓动 = 转腕” */
@@ -281,6 +291,7 @@ export const LESSON_FINGER = [
     travel: 0.2,
     test: (input) => input.count >= 1,
   },
+  SHORTCUT_LESSON,
 ];
 
 
@@ -889,7 +900,7 @@ export class Show {
     });
   }
 
-  skipLesson() {
+  skipLesson({ completed = false } = {}) {
     this.ui?.setLesson({ visible: false });
     this.lessonDone = true;
     try {
@@ -899,7 +910,8 @@ export class Show {
     }
     this.beatIndex = -1;
     this.setState(STATE.PLAY);
-    this.ui?.toast('跳过教学 · 直接开演');
+    this.ui?.toast(completed ? '教学完成 · 开演' : '跳过教学 · 直接开演');
+    if (completed) this.ui?.flashGuide(5600);
   }
 
   updateTutorial(dt, input) {
@@ -958,18 +970,7 @@ export class Show {
       this.lessonRoll = 0;
       this.lessonLastRoll = null;
       if (this.lessonIndex >= this.lessonSteps.length) {
-        this.ui?.setLesson({ visible: false });
-        this.lessonDone = true;
-        try {
-          // 用 sessionStorage：关掉浏览器再打开，还会再教一遍（展馆换了一批观众）
-          sessionStorage.setItem(this.lessonKey, 'done');
-        } catch (e) {
-          /* 无痕模式忽略 */
-        }
-        this.beatIndex = -1;
-        this.setState(STATE.PLAY);
-        this.ui?.toast('教学完成 · 开演');
-        this.ui?.flashGuide(5600);
+        this.skipLesson({ completed: true });
       } else {
         this.showLesson();
       }

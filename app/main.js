@@ -2,7 +2,7 @@ import { loadWoop } from './woop.js?release=art36-20261124b';
 import { Stage } from './stage.js?release=art36-20261124d';
 import { GestureInput } from './gesture.js';
 import { createModelLoader } from './model-loader.js';
-import { Show, STATE, SCENES } from './show.js?release=art36-20261124b';
+import { Show, STATE, SCENES } from './show.js?release=lesson-20261125a';
 import { UI } from './ui.js';
 import { Audio } from './audio.js';
 
@@ -611,6 +611,7 @@ async function boot() {
         location.href = withParam({ duo: '1' });
         break;
       case 'finger': {
+        if (show.state === STATE.TUTORIAL && show.lesson.id === 'shortcuts') show.skipLesson({ completed: true });
         show.fingerMode = !show.fingerMode;
         btn.classList.toggle('is-on', show.fingerMode);
         document.body.classList.toggle('finger-mode', show.fingerMode);
@@ -676,12 +677,13 @@ async function boot() {
     if (e.key === 'c' || e.key === 'C') ui.setCameraVisible(document.getElementById('camera-card').classList.contains('is-hidden'));
     if (e.key === 'h' || e.key === 'H') ui.toggleHelp();
     if (e.key === 't' || e.key === 'T') {
-      if (show.state === STATE.TUTORIAL) show.skipLesson();
+      if (show.state === STATE.TUTORIAL) show.skipLesson({ completed: show.lesson.id === 'shortcuts' });
       else show.startTutorial();
     }
     if (e.key === 'r' || e.key === 'R') armCamera();
     if (e.key === 'p' || e.key === 'P') show.startAutoplay(); // 手动看谢幕
     if (e.key === 'g' || e.key === 'G') {
+      if (show.state === STATE.TUTORIAL && show.lesson.id === 'shortcuts') show.skipLesson({ completed: true });
       show.fingerMode = !show.fingerMode;
       ui.toast(
         show.fingerMode ? '手指模式：拇指食指捏住=执签，搓动=转腕' : '手指模式关闭 · 回到张手跟手',
