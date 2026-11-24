@@ -52,9 +52,16 @@ export class Puppet {
       base.multiplyScalar(0.9 + ((p.index % 5) - 2) * 0.04);
       // 脸和手不打孔（现实里皮影的脸是阳刻线，不是筛子）
       const skinNoHole = role === 'head' || role === 'hand';
-      const paint = paintMaterial(tex, base, this.opacity * 0.95, [p.width, p.height], skinNoHole ? 0.12 : 1);
+      const paint = p.skinTextures ? artworkMaterial(p.skinTextures.painted, this.opacity)
+        : paintMaterial(tex, base, this.opacity * 0.95, [p.width, p.height], skinNoHole ? 0.12 : 1);
       // 备用材质 B：剪影 + 镂空孔（灯箱里真实皮影就是这样透光的）
-      const carved = paintMaterial(tex, this.tint.clone(), this.opacity, [p.width, p.height], skinNoHole ? 0.1 : 0.62);
+      const carved = p.skinTextures ? artworkMaterial(p.skinTextures.carved, this.opacity)
+        : paintMaterial(tex, this.tint.clone(), this.opacity, [p.width, p.height], skinNoHole ? 0.1 : 0.62);
+      if (p.skinTextures) {
+        mat.map = p.skinTextures.silhouette;
+        mat.color.set(0xffffff);
+        mat.alphaTest = 0.06;
+      }
       this.partObjects.set(p.id, { mesh, part: p, z: (p.zIndex - maxZ) * 0.05, mat, paint, carved });
     }
     this.skin = 'silhouette';
@@ -142,13 +149,14 @@ export class Puppet {
     this.opacity = o;
     for (const { mat, paint, carved } of this.partObjects.values()) {
       mat.opacity = o;
-      paint.opacity = o * 0.95;
+      paint.opacity = this.rig.manifest.visualSkins ? o : o * 0.95;
       carved.opacity = o;
     }
   }
 
   setTint(hex) {
     this.tint.set(hex);
+    if (this.rig.manifest.visualSkins) return; // Keep the approved pigment colors.
     for (const { mat, carved } of this.partObjects.values()) {
       mat.color.copy(this.tint);
       carved.color.copy(this.tint);
@@ -159,7 +167,9 @@ export class Puppet {
    * 三档皮：silhouette 纯剪影 / carved 剪影+镂空 / painted 套色
    */
   setSkin(mode) {
+    if (!['silhouette', 'carved', 'painted'].includes(mode)) return;
     this.skin = mode;
+    this.painted = mode === 'painted';
     for (const o of this.partObjects.values()) {
       o.mesh.material = mode === 'painted' ? o.paint : mode === 'carved' ? o.carved : o.mat;
     }
@@ -208,7 +218,11 @@ export class Puppet {
     );
     this.headTilt = lerp(
       this.headTilt,
-      (still ? 0 : Math.sin(t * 0.4) * 0.018) + (ctx.headTilt || 0) - this.bowAmount * 0.05 + this.flourishAmount * 0.04,
+      clamp(
+        (still ? 0 : Math.sin(t * 0.4) * 0.018) + (ctx.headTilt || 0) - this.bowAmount * 0.05 + this.flourishAmount * 0.04,
+        -(rig.manifest.articulation?.headTiltMaxRadians ?? Infinity),
+        rig.manifest.articulation?.headTiltMaxRadians ?? Infinity,
+      ),
       1 - Math.exp(-5 * dt),
     );
 
@@ -225,6 +239,8 @@ export class Puppet {
       right: { u: rig.arms.right ? rig.arms.right.upper.theta : 0, l: rig.arms.right ? rig.arms.right.lower.theta : 0 },
     };
 
+    const previousDrives = new Map((rig.manifest.articulation?.jointDrives || [])
+      .map(drive => [drive.part, rig.byId.get(drive.part)?.theta || 0]));
     // 关节角初始化
     for (const p of rig.parts) p.theta = 0;
 
@@ -298,7 +314,16 @@ export class Puppet {
     // ---- 腿：走步循环
     for (const side of ['left', 'right']) {
       const leg = rig.legs[side];
-      if (!leg) continue;
+      if (!leg) {
+        // Long robes hide the knees; these artwork packs articulate the two
+        // shoe/ankle pieces around their own hip anchors instead.
+        const id = rig.roles.legs[side]?.upper;
+        if (rig.manifest.visualSkins && id) {
+          const phase = this.walkPhase + (side === 'left' ? 0 : Math.PI);
+          rig.byId.get(id).theta = Math.sin(phase) * 0.20 * this.walkAmount;
+        }
+        continue;
+      }
       const phase = this.walkPhase + (side === 'left' ? 0 : Math.PI);
       const amp = 0.5 * this.walkAmount;
       const hip = Math.sin(phase) * amp + (still ? 0 : Math.sin(t * 0.8) * 0.004);
@@ -310,6 +335,22 @@ export class Puppet {
     // ---- 躯干/头
     if (rig.torsoPart) rig.torsoPart.theta = this.bodyLean;
     if (rig.headPart) rig.headPart.theta = this.headTilt;
+
+    // Scene artwork may expose existing animal/wing joints to the same hand
+    // targets and fist holds. Legacy packs have no drives and keep their path.
+    for (const drive of rig.manifest.articulation?.jointDrives || []) {
+      const part = rig.byId.get(drive.part);
+      const target = this.armTargets[drive.side];
+      if (!part) continue;
+      if (target?.held) {
+        part.theta = previousDrives.get(drive.part) || 0;
+        continue;
+      }
+      const aim = target?.active && target.target
+        ? clamp((rig.bounds.height * 0.5 - target.target.y) / (rig.bounds.height * 0.4), -1, 1) : 0;
+      part.theta = Math.sin(this.walkPhase + drive.phase) * drive.gait * this.walkAmount
+        + aim * drive.aim + (still ? 0 : Math.sin(t * 1.2 + drive.phase) * drive.idle);
+    }
 
     // ---- 求世界矩阵并贴到 mesh
     evaluateRig(rig, this.matrices);
@@ -503,6 +544,13 @@ function paintMaterial(tex, color, opacity = 1, size = null, holeScale = 1) {
   };
   m.customProgramCacheKey = () => 'woop-paint-v4';
   return m;
+}
+
+function artworkMaterial(texture, opacity) {
+  return new THREE.MeshBasicMaterial({
+    map: texture, color: 0xffffff, transparent: true, alphaTest: 0.06,
+    opacity, side: THREE.DoubleSide, depthWrite: true,
+  });
 }
 
 function rod(color, opacity, half = 2.4) {

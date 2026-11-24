@@ -388,7 +388,6 @@ export class Show {
     for (const p of scene.props || []) if (p.asset) names.add(p.asset);
     for (const c of scene.cast || []) if (c.asset) names.add(c.asset);
     const missing = [...names].filter((n) => !this.assets[n]);
-    if (!missing.length) return;
     for (const name of missing) {
       const item = (this.catalog || []).find((x) => x.name === name);
       if (!item) continue;
@@ -398,6 +397,8 @@ export class Show {
         console.warn('[show] 资产加载失败', name, err);
       }
     }
+    await Promise.all((scene.cast || []).map(c =>
+      this.assets[c.asset]?.loadSceneArtwork?.(scene.id)));
   }
 
   async loadScene(index, { silent = false } = {}) {
@@ -424,6 +425,7 @@ export class Show {
       const a = this.assets[c.asset];
       if (!a) continue;
       const puppet = this.stage.addPuppet(a, {
+        sceneArtwork: scene.id,
         x: c.x ?? 0,
         height: c.height ?? this.stage.viewHeight * 0.6,
         facing: c.facing ?? 1,

@@ -7,7 +7,19 @@
     "joints": 11,
     "file": "woop_import_bc989d9f56f94f4295aa755f620414fe.woop",
     "thumb": "woop_import_bc989d9f56f94f4295aa755f620414fe.webp",
-    "source": "https://piying.woooostudio.com/ 官方资产库"
+    "source": "https://piying.woooostudio.com/ 官方资产库",
+    "sceneArt": {
+      "battle": {
+        "file": "remaining/battle_warrior.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 12,
+        "joints": 11
+      }
+    }
   },
   {
     "name": "持戟武将",
@@ -17,7 +29,29 @@
     "joints": 10,
     "file": "woop_import_422c0f88c6374c13ab6b7773fda2038e.woop",
     "thumb": "woop_import_422c0f88c6374c13ab6b7773fda2038e.webp",
-    "source": "https://piying.woooostudio.com/ 官方资产库"
+    "source": "https://piying.woooostudio.com/ 官方资产库",
+    "sceneArt": {
+      "battle": {
+        "file": "remaining/battle_general.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      },
+      "bawang": {
+        "file": "remaining/bawang_king.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      }
+    }
   },
   {
     "name": "长辫女子",
@@ -27,7 +61,39 @@
     "joints": 10,
     "file": "woop_import_f10a164b2547493eb0e0929112b798d1.woop",
     "thumb": "woop_import_f10a164b2547493eb0e0929112b798d1.webp",
-    "source": "https://piying.woooostudio.com/ 官方资产库"
+    "source": "https://piying.woooostudio.com/ 官方资产库",
+    "sceneArt": {
+      "moon": {
+        "file": "act01/woman.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      },
+      "bawang": {
+        "file": "remaining/bawang_yu.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      },
+      "xiang": {
+        "file": "remaining/xiang_ying.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      }
+    }
   },
   {
     "name": "骑鹤仙人",
@@ -37,7 +103,29 @@
     "joints": 10,
     "file": "woop_import_2806661ae9e64de9b44da8333740bf3a.woop",
     "thumb": "woop_import_2806661ae9e64de9b44da8333740bf3a.webp",
-    "source": "https://piying.woooostudio.com/ 官方资产库"
+    "source": "https://piying.woooostudio.com/ 官方资产库",
+    "sceneArt": {
+      "baxian": {
+        "file": "remaining/baxian_immortal.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      },
+      "crane": {
+        "file": "remaining/crane_immortal.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      }
+    }
   },
   {
     "name": "踏云武生",
@@ -57,7 +145,29 @@
     "joints": 10,
     "file": "woop_import_54d0d76f20164a729184e3451ac5b53b.woop",
     "thumb": "woop_import_54d0d76f20164a729184e3451ac5b53b.webp",
-    "source": "https://piying.woooostudio.com/ 官方资产库"
+    "source": "https://piying.woooostudio.com/ 官方资产库",
+    "sceneArt": {
+      "moon": {
+        "file": "act01/scholar.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      },
+      "xiang": {
+        "file": "remaining/xiang_zhang.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 11,
+        "joints": 10
+      }
+    }
   },
   {
     "name": "鹿",
@@ -67,7 +177,19 @@
     "joints": 9,
     "file": "woop_import_7e9227b05b204f13966404c1b03e7604.woop",
     "thumb": "woop_import_7e9227b05b204f13966404c1b03e7604.webp",
-    "source": "https://piying.woooostudio.com/ 官方资产库"
+    "source": "https://piying.woooostudio.com/ 官方资产库",
+    "sceneArt": {
+      "crane": {
+        "file": "remaining/crane_deer.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 10,
+        "joints": 9
+      }
+    }
   },
   {
     "name": "骏马",
@@ -87,7 +209,19 @@
     "joints": 7,
     "file": "woop_import_9701ea2b020f415a905a85a4cdf417ea.woop",
     "thumb": "woop_import_9701ea2b020f415a905a85a4cdf417ea.webp",
-    "source": "https://piying.woooostudio.com/ 官方资产库"
+    "source": "https://piying.woooostudio.com/ 官方资产库",
+    "sceneArt": {
+      "baxian": {
+        "file": "remaining/baxian_dragon.woop",
+        "modes": [
+          "silhouette",
+          "carved",
+          "painted"
+        ],
+        "parts": 8,
+        "joints": 7
+      }
+    }
   },
   {
     "name": "拱桥",

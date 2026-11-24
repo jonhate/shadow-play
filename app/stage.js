@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three/three.module.js';
-import { Puppet } from './puppet.js';
+import { Puppet } from './puppet.js?release=art36-20261124';
 import { A, buildRig, clamp } from './rig.js';
 
 /** 舞台：正交相机 + 灯箱影幕。背景交给 CSS/SVG，WebGL 只画皮影与景片。 */
@@ -50,6 +50,7 @@ export class Stage {
   }
 
   addPuppet(woop, opts = {}) {
+    if (opts.sceneArtwork && woop.sceneArtwork?.[opts.sceneArtwork]) woop = woop.sceneArtwork[opts.sceneArtwork];
     const rig = buildRig(woop);
     // 用“舞台高度”换算比例：不同角色包原始像素尺寸差别很大
     const height = opts.height ?? this.viewHeight * 0.62;
@@ -178,5 +179,7 @@ function disposePuppet(p) {
   p.group.traverse((o) => {
     if (o.isMesh) o.geometry.dispose();
   });
-  for (const o of p.partObjects.values()) o.mesh.material.dispose();
+  for (const o of p.partObjects.values()) {
+    for (const material of new Set([o.mat, o.paint, o.carved])) material?.dispose();
+  }
 }

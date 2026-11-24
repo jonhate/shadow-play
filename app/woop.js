@@ -132,6 +132,19 @@ export async function loadWoop(url, meta = {}) {
     const image = texture.image;
     const width = Number(p.width || asset?.width || image.width || 1);
     const height = Number(p.height || asset?.height || image.height || 1);
+    // Approved artwork packs carry an independent image for every skin and part.
+    // Load all skins before creating the puppet so switching is synchronous.
+    let skinTextures = null;
+    if (manifest.visualSkins) {
+      skinTextures = {};
+      for (const mode of ['silhouette', 'carved', 'painted']) {
+        const path = manifest.visualSkins[mode]?.[id];
+        const skinMember = findMember(files, path);
+        if (!skinMember) throw new Error(`美术包缺少部件：${mode}/${id}`);
+        skinTextures[mode] = skinMember === member ? texture
+          : await textureFromBytes(files[skinMember], MIME_BY_EXT[extOf(skinMember)] || 'image/png');
+      }
+    }
 
     parts.push({
       id,
@@ -142,6 +155,7 @@ export async function loadWoop(url, meta = {}) {
       zIndex: Number(manifestValue(rest, 'zIndex', 'z_index') ?? i),
       anchors: anchorsOf(p),
       texture,
+      skinTextures,
     });
   }
 

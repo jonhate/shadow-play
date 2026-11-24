@@ -1,8 +1,8 @@
-import { loadWoop } from './woop.js';
-import { Stage } from './stage.js';
+import { loadWoop } from './woop.js?release=art36-20261124';
+import { Stage } from './stage.js?release=art36-20261124';
 import { GestureInput } from './gesture.js';
 import { createModelLoader } from './model-loader.js';
-import { Show, STATE, SCENES } from './show.js';
+import { Show, STATE, SCENES } from './show.js?release=art36-20261124';
 import { UI } from './ui.js';
 import { Audio } from './audio.js';
 
@@ -77,7 +77,7 @@ async function boot() {
   };
   let catalog;
   try {
-    const r = await fetchWithTimeout(assetUrl('puppets/index.json'));
+    const r = await fetchWithTimeout(assetUrl('puppets/index.json?release=art36-20261124'));
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     catalog = await r.json();
   } catch (err) {
@@ -85,10 +85,35 @@ async function boot() {
     console.warn('[boot] 资源前缀不可用，回退同源（检查 CDN/对象存储的 CORS 是否允许本站）', err);
     ASSET_BASE = '';
     assetFellBack = true;
-    catalog = await fetch('./puppets/index.json').then((r) => r.json());
+    catalog = await fetch('./puppets/index.json?release=art36-20261124').then((r) => r.json());
   }
+  // The CDN may still publish an older catalog. Artwork annotations belong to
+  // this application release, while the legacy large files can keep using CDN.
+  const artworkCatalog = ASSET_BASE
+    ? await fetchWithTimeout('./puppets/index.json?release=art36-20261124').then(response => {
+      if (!response.ok) throw new Error(`美术索引读取失败（HTTP ${response.status}）`);
+      return response.json();
+    }) : catalog;
+  const sceneArtById = new Map(artworkCatalog.map(item => [item.id, item.sceneArt || {}]));
   const assets = {};
-  const loadAsset = (item) => loadWoop(assetUrl(`puppets/${item.file}`), item);
+  const loadAsset = async (item) => {
+    const asset = await loadWoop(assetUrl(`puppets/${item.file}`), item);
+    // Scene-specific packs share one loader/cache. Switching a visual mode only
+    // swaps materials on the live rig; loading another scene may select a pack.
+    const pending = new Map();
+    asset.sceneArtwork = {};
+    asset.loadSceneArtwork = (sceneId) => {
+      const file = sceneArtById.get(item.id)?.[sceneId]?.file;
+      if (!file) return Promise.resolve(null);
+      if (!pending.has(sceneId)) pending.set(sceneId,
+        loadWoop(`./puppets/${file}`, item).then(pack => {
+          asset.sceneArtwork[sceneId] = pack;
+          return pack;
+        }).catch(error => { pending.delete(sceneId); throw error; }));
+      return pending.get(sceneId);
+    };
+    return asset;
+  };
 
   // 首屏只等第一出戏要用的皮影（原来是把 15 个资产全部串行下完才开演，
   // 弱网下要多花十几秒）；其余资产在开演后后台补齐，切出目不会卡。
@@ -645,7 +670,7 @@ async function boot() {
         m.y = ny;
       }
     }
-    show.update(dt, now);
+    if (!(params.get('qa') === '1' && window.SHADOWPLAY_QA_PAUSED)) show.update(dt, now);
     if (bodyFinger !== show.fingerMode) {
       bodyFinger = show.fingerMode;
       document.body.classList.toggle('finger-mode', bodyFinger);
@@ -684,6 +709,7 @@ async function boot() {
 
   // 调试/集成用
   window.SHADOWPLAY = { stage, show, gesture, ui, audio, assets, SCENES, STATE, manual, assetSource, modelGate };
+  if (params.get('qa') === '1') import('../qa/runner.js').then((m) => m.installQA(window.SHADOWPLAY));
   if (params.get('still') === '1') show.still = true;
   if (params.get('skin')) show.applySkin(params.get('skin'));
   else if (params.get('paint') === '1') show.applySkin('painted');
