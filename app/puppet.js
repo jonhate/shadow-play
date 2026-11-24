@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three/three.module.js';
+import { createSkinArtwork } from './skin-art.js';
 import { A, buildRig, clamp, dampAngle, evaluateRig, lerp, solveArm, wrapPi } from './rig.js';
 
 /** 一个皮影：负责建 three 对象、把骨架矩阵贴上去、以及“执签”的手感 */
@@ -52,9 +53,11 @@ export class Puppet {
       base.multiplyScalar(0.9 + ((p.index % 5) - 2) * 0.04);
       // 脸和手不打孔（现实里皮影的脸是阳刻线，不是筛子）
       const skinNoHole = role === 'head' || role === 'hand';
-      const paint = paintMaterial(tex, base, this.opacity * 0.95, [p.width, p.height], skinNoHole ? 0.12 : 1);
+      const paintArt = createSkinArtwork(THREE,p.width,p.height,role,'painted',p.index);
+      const paint = paintMaterial(tex, base, this.opacity * .95, [p.width,p.height], paintArt, false);
       // 备用材质 B：剪影 + 镂空孔（灯箱里真实皮影就是这样透光的）
-      const carved = paintMaterial(tex, this.tint.clone(), this.opacity, [p.width, p.height], skinNoHole ? 0.1 : 0.62);
+      const carvedArt = createSkinArtwork(THREE,p.width,p.height,role,'carved',p.index);
+      const carved = paintMaterial(tex, this.tint.clone(), this.opacity, [p.width,p.height], carvedArt, !skinNoHole);
       this.partObjects.set(p.id, { mesh, part: p, z: (p.zIndex - maxZ) * 0.05, mat, paint, carved });
     }
     this.skin = 'silhouette';
@@ -424,12 +427,9 @@ function quadGeometry(w, h) {
    ------------------------------------------------------------------ */
 
 const PALETTE = {
-  head: 0xd9a066, // 暖白偏赭（脸与手）
-  hand: 0xd9a066,
-  torso: 0xb02a1a, // 朱红
-  arm: 0x1f6b52, // 石绿
-  leg: 0x172238, // 墨蓝
-  other: 0x8a4f24, // 皮黄
+  head: 0xe0ac7d, hand: 0xe0ac7d,
+  torso: 0xa54134, arm: 0x366c65,
+  leg: 0x3e5168, other: 0xb8874c,
 };
 
 function partRole(rig, partId) {
@@ -450,58 +450,45 @@ function partRole(rig, partId) {
   return 'other';
 }
 
-function paintMaterial(tex, color, opacity = 1, size = null, holeScale = 1) {
+/** The original WOOP bitmap remains the only silhouette and alpha source.
+ * Pattern textures are independent decorative masks. No rig or input changes.
+ */
+function paintMaterial(tex, color, opacity = 1, size = null, artwork = null, cutout = false) {
   const m = new THREE.MeshBasicMaterial({
-    map: tex,
-    color,
-    transparent: true,
-    alphaTest: 0.45,
-    side: THREE.DoubleSide,
-    depthWrite: true,
-    opacity,
+    map: tex, color, transparent: true, alphaTest: .45,
+    side: THREE.DoubleSide, depthWrite: true, opacity,
   });
-  m.userData.uSize = { value: new THREE.Vector2(size ? size[0] : 200, size ? size[1] : 200) };
-  m.userData.uHoles = { value: holeScale };
-  m.userData.uInk = { value: 0.34 };
-  m.userData.uCarve = { value: 0.33 };
-  m.userData.uHoles = { value: holeScale };
+  m.userData.skinSize = { value: new THREE.Vector2(size?.[0] || 200, size?.[1] || 200) };
+  if (artwork) m.userData.artwork = { value: artwork };
   m.onBeforeCompile = (shader) => {
-    shader.uniforms.uSize = m.userData.uSize;
-    shader.uniforms.uInk = m.userData.uInk;
-    shader.uniforms.uCarve = m.userData.uCarve;
-    shader.uniforms.uHoles = m.userData.uHoles;
+    shader.uniforms.uSkinSize = m.userData.skinSize;
+    if (artwork) shader.uniforms.uSkinArtwork = m.userData.artwork;
     shader.fragmentShader = [
-      'uniform vec2 uSize;',
-      'uniform float uInk;',
-      'uniform float uCarve;',
-      'uniform float uHoles;',
+      'uniform vec2 uSkinSize;',
+      ...(artwork ? ['uniform sampler2D uSkinArtwork;'] : []),
       shader.fragmentShader,
     ].join('\n');
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <map_fragment>',
-      [
-        '#ifdef USE_MAP',
-        '  // 只取剪影 alpha，RGB 用 material.color',
-        '  float maskA = texture2D( map, vMapUv ).a;',
-        '  // 在“部件像素空间”里画纹样：不同部件间疏密一致，不随缩放变形',
-        '  vec2 pp = vMapUv * uSize;',
-        '  // 雕刻孔：皮影最常见的就是一排排小眼，透过去是亮的（只上在衣袍上）',
-        '  float dotGrid = abs(sin(pp.x * 0.055)) * abs(sin(pp.y * 0.055));',
-        '  float holes = smoothstep(0.93, 0.999, dotGrid) * uHoles;',
-        '  // 斜向细纹：皮革的刀口感，压得很淡，只当质感',
-        '  float hatch = smoothstep(0.90, 1.0, abs(sin((pp.x * 0.8 + pp.y * 1.6) * 0.045)));',
-        '  // 大尺度云纹：极细的一条阳刻线',
-        '  float cloud = 0.5 + 0.5 * sin(pp.y * 0.019 + sin(pp.x * 0.009) * 2.4);',
-        '  float lineCloud = smoothstep(0.972, 0.999, cloud);',
-        '  float ink = clamp(max(lineCloud * 0.66, hatch * 0.28), 0.0, 1.0);',
-        '  diffuseColor.rgb *= mix(1.0, 1.0 - uInk, ink);',
-        '  maskA *= mix(1.0, 1.0 - uCarve, holes);',
-        '  diffuseColor.a *= maskA;',
-        '#endif',
-      ].join('\n'),
+    const lines = [
+      '#ifdef USE_MAP',
+      'float sourceAlpha = texture2D(map,vMapUv).a;',
+      'diffuseColor.a *= sourceAlpha;',
+    ];
+    if (artwork && cutout) lines.push(
+      'vec4 art = texture2D(uSkinArtwork,vMapUv);',
+      'vec2 stepUV = 3.0 / max(uSkinSize,vec2(45.0));',
+      'float edgeSafe = min(min(texture2D(map,vMapUv+vec2(stepUV.x,0.)).a,texture2D(map,vMapUv-vec2(stepUV.x,0.)).a),min(texture2D(map,vMapUv+vec2(0.,stepUV.y)).a,texture2D(map,vMapUv-vec2(0.,stepUV.y)).a));',
+      'float safeInterior = smoothstep(.72,.98,edgeSafe);',
+      'diffuseColor.a *= (1. - art.a * .97 * safeInterior);',
     );
+    else if (artwork) lines.push(
+      'vec4 art = texture2D(uSkinArtwork,vMapUv);',
+      'diffuseColor.rgb = mix(diffuseColor.rgb,art.rgb,min(.94,art.a * .92));',
+    );
+    lines.push('#endif');
+    if(!shader.fragmentShader.includes('#include <map_fragment>')) throw Error('map_fragment hook missing');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',lines.join('\n'));
   };
-  m.customProgramCacheKey = () => 'woop-paint-v4';
+  m.customProgramCacheKey = () => 'shadow-skin-art-v2:' + (artwork ? (cutout ? 'carved':'painted') : 'plain');
   return m;
 }
 
