@@ -474,11 +474,16 @@ function paintMaterial(tex, color, opacity = 1, size = null, artwork = null, cut
       'diffuseColor.a *= sourceAlpha;',
     ];
     if (artwork && cutout) lines.push(
-      'vec4 art = texture2D(uSkinArtwork,vMapUv);',
+      'vec2 artUVStep = 1.6 / max(uSkinSize,vec2(45.0));',
+      'float artA = texture2D(uSkinArtwork,vMapUv).a;',
+      'artA = max(artA, texture2D(uSkinArtwork,vMapUv+vec2(artUVStep.x,0.)).a);',
+      'artA = max(artA, texture2D(uSkinArtwork,vMapUv-vec2(artUVStep.x,0.)).a);',
+      'artA = max(artA, texture2D(uSkinArtwork,vMapUv+vec2(0.,artUVStep.y)).a);',
+      'artA = max(artA, texture2D(uSkinArtwork,vMapUv-vec2(0.,artUVStep.y)).a);',
       'vec2 stepUV = 3.0 / max(uSkinSize,vec2(45.0));',
       'float edgeSafe = min(min(texture2D(map,vMapUv+vec2(stepUV.x,0.)).a,texture2D(map,vMapUv-vec2(stepUV.x,0.)).a),min(texture2D(map,vMapUv+vec2(0.,stepUV.y)).a,texture2D(map,vMapUv-vec2(0.,stepUV.y)).a));',
       'float safeInterior = smoothstep(.72,.98,edgeSafe);',
-      'diffuseColor.a *= (1. - art.a * .97 * safeInterior);',
+      'diffuseColor.a *= (1. - artA * .97 * safeInterior);',
     );
     else if (artwork) lines.push(
       'vec4 art = texture2D(uSkinArtwork,vMapUv);',

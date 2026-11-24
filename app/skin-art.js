@@ -17,13 +17,13 @@ function blossom(ctx, x, y, r, carved, rot = 0) {
   ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
   for (let i = 0; i < 6; i++) {
     ctx.save(); ctx.rotate(i * TWO_PI / 6);
-    ctx.beginPath(); ctx.ellipse(0, -r * 0.49, r * 0.24, r * 0.34, 0, 0, TWO_PI);
+    ctx.beginPath(); ctx.ellipse(0, -r * 0.49, r * (carved ? 0.36 : 0.24), r * (carved ? 0.50 : 0.34), 0, 0, TWO_PI);
     ctx.fillStyle = carved ? '#ffffff' : (i % 2 ? '#d48a52' : '#f0c77d');
     ctx.fill();
     if (!carved) { ctx.strokeStyle = '#8d4139'; ctx.lineWidth = r * 0.037; ctx.stroke(); }
     ctx.restore();
   }
-  ctx.beginPath(); ctx.arc(0, 0, r * 0.17, 0, TWO_PI);
+  ctx.beginPath(); ctx.arc(0, 0, r * (carved ? 0.24 : 0.17), 0, TWO_PI);
   ctx.fillStyle = carved ? '#ffffff' : '#9b3b31'; ctx.fill();
   if (!carved) {
     for (let i = 0; i < 7; i++) {
@@ -47,7 +47,7 @@ function leaf(ctx, x, y, r, rotation, carved) {
 }
 function scroll(ctx, x, y, r, carved, mirror = false) {
   ctx.save(); ctx.translate(x, y); ctx.scale(mirror ? -1 : 1, 1);
-  stroke(ctx, carved ? '#fff' : COLORS.gold, Math.max(1.3, r * (carved ? .12 : .07)), () => {
+  stroke(ctx, carved ? '#fff' : COLORS.gold, carved ? Math.max(3.4, r * .24) : Math.max(1.3, r * .07), () => {
     ctx.moveTo(-r * .8, r * .2);
     ctx.bezierCurveTo(-r * .1, -r * .65, r * .85, -r * .65, r * .65, r * .12);
     ctx.bezierCurveTo(r * .49, r * .67, -r * .12, r * .29, r * .12, -.04 * r);
@@ -57,7 +57,7 @@ function scroll(ctx, x, y, r, carved, mirror = false) {
 function hemWaves(ctx, w, y, radius, carved) {
   const col = carved ? '#fff' : COLORS.gold;
   for (let k = 0; k < 2; k++) {
-    stroke(ctx, col, carved ? 2.0 : 1.3, () => {
+    stroke(ctx, col, carved ? 3.6 : 1.3, () => {
       const yy = y + k * radius * .56;
       for (let x = -radius; x < w + radius; x += radius * 1.68) {
         ctx.moveTo(x, yy);
@@ -108,7 +108,7 @@ export function drawSkinArtwork(ctx, w, h, role, mode, seed = 0) {
     blossom(ctx, w * fx + drift, h * fy, flowerR * fr, carved, (seed % 5) * .13);
   }
   // Continuous winding stems link the carved blossoms into a textile composition.
-  stroke(ctx, carved ? '#ffffff' : COLORS.gold, carved ? Math.max(1.4,scale*.07) : Math.max(.9,scale*.038), () => {
+  stroke(ctx, carved ? '#ffffff' : COLORS.gold, carved ? Math.max(3.2,scale*.16) : Math.max(.9,scale*.038), () => {
     ctx.moveTo(w*.17,h*.78);
     ctx.bezierCurveTo(w*.24,h*.57,w*.35,h*.56,w*.46,h*.44);
     ctx.bezierCurveTo(w*.60,h*.30,w*.72,h*.30,w*.82,h*.19);
@@ -128,7 +128,7 @@ export function drawSkinArtwork(ctx, w, h, role, mode, seed = 0) {
     hemWaves(ctx, w, h * .89, Math.max(15, scale * .77), carved);
   } else if (role === 'arm') {
     // Sleeve border should remain a border, not scattered dots.
-    stroke(ctx, carved ? '#fff' : COLORS.gold, carved ? 2.3 : 1.8, () => {
+    stroke(ctx, carved ? '#fff' : COLORS.gold, carved ? 3.8 : 1.8, () => {
       ctx.moveTo(w * .09, h * .12); ctx.quadraticCurveTo(w * .21, h * .49, w * .09, h * .87);
       ctx.moveTo(w * .91, h * .12); ctx.quadraticCurveTo(w * .80, h * .49, w * .91, h * .87);
     });
