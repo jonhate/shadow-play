@@ -7,3 +7,5 @@
 - 01_必交截图 · 8 张
 - 02_扩展备选 · 29 张
 - 03_无识别提示重拍 · 16 张
+
+[下载新版 PPTX](https://github.com/jonhate/shadow-play/raw/refs/heads/contest-screenshots-20261124/shadow-play-v11-updated.pptx)
