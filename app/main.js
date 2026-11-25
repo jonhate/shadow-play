@@ -33,7 +33,7 @@ if (isKiosk) {
   window.addEventListener('keydown', fs);
 }
 
-// 「待客呼吸」记住上次的选择要抢在最前面：放到 boot 末尾会晚于 attract 首帧，
+// 「待客提示」记住上次的选择要抢在最前面：放到 boot 末尾会晚于 attract 首帧，
 // 刷新时屏幕会先脉动一下才停，等于没关。
 try {
   if (localStorage.getItem('shadowplay:wakebreath') === '0') document.body.classList.add('wake-still');
@@ -567,7 +567,7 @@ async function boot() {
     if (on) audio.startBgm(show.scene ? show.scene.id : 'attract');
   });
 
-  // ---- 待客呼吸：「举手 · 开演」那点脉动有人嫌烦，做成可关（工具 → 开演呼吸）
+  // ---- 待客提示：屏幕中央那块「举手 · 开演」圆环+文字有人嫌碍眼，做成可关（工具 → 开演提示）
   const toolsPanel = document.getElementById('tools-panel');
   const breatheBtn = toolsPanel?.querySelector('[data-tool="breathe"]');
   const setWakeBreathe = (on, remember = false) => {
@@ -648,7 +648,7 @@ async function boot() {
       case 'breathe': {
         const on = document.body.classList.contains('wake-still');
         setWakeBreathe(on, true);
-        ui.toast(on ? '待客呼吸：开' : '待客呼吸：已关，屏幕不再脉动', 2000);
+        ui.toast(on ? '待客提示：开' : '待客提示：已关，「举手 · 开演」不再显示', 2000);
         break;
       }
       case 'lesson':
@@ -858,7 +858,7 @@ async function boot() {
     /* ignore */
   }
   ui.setMusicToggle(audio.bgmEnabled);
-  // 记住上次的「待客呼吸」开关：关过一次的人下次不想再被脉动吵
+  // 记住上次的「待客提示」开关：关过一次的人下次不想再看见那块圆环
   // 这里把按钮的亮/暗也对齐（默认是开的，所以默认就是亮着的）
   try {
     setWakeBreathe(localStorage.getItem('shadowplay:wakebreath') !== '0');

@@ -282,8 +282,9 @@ body.kiosk button {
   50% { transform: translate(-50%, -50%) scale(1.06); }
 }
 
-/* 待客呼吸做成可关的（工具 → 开演呼吸）：关掉后这块完全静止，只留静止的提示与进度环 */
+/* 待客提示做成可关的（工具 → 开演提示）：关掉后待客画面中央的「举手 · 开演」圆环与文字整个不显示，画面干净 */
 body.wake-still #app[data-state='attract'] .wake {
+  display: none;
   animation: none;
 }
 
