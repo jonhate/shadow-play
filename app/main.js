@@ -33,6 +33,12 @@ if (isKiosk) {
   window.addEventListener('keydown', fs);
 }
 
+// 「待客呼吸」记住上次的选择要抢在最前面：放到 boot 末尾会晚于 attract 首帧，
+// 刷新时屏幕会先脉动一下才停，等于没关。
+try {
+  if (localStorage.getItem('shadowplay:wakebreath') === '0') document.body.classList.add('wake-still');
+} catch (e) { /* ignore */ }
+
 async function boot() {
   const ui = new UI();
   const audio = new Audio();
@@ -561,8 +567,20 @@ async function boot() {
     if (on) audio.startBgm(show.scene ? show.scene.id : 'attract');
   });
 
-  // ---- 工具面板：给不懂技术的人用，所有自检与模式切换都收在这
+  // ---- 待客呼吸：「举手 · 开演」那点脉动有人嫌烦，做成可关（工具 → 开演呼吸）
   const toolsPanel = document.getElementById('tools-panel');
+  const breatheBtn = toolsPanel?.querySelector('[data-tool="breathe"]');
+  const setWakeBreathe = (on, remember = false) => {
+    document.body.classList.toggle('wake-still', !on);
+    breatheBtn?.classList.toggle('is-on', on);
+    if (remember) {
+      try {
+        localStorage.setItem('shadowplay:wakebreath', on ? '1' : '0');
+      } catch (err) {
+        /* ignore */
+      }
+    }
+  };
   const setTools = (on) => toolsPanel?.classList.toggle('is-on', on);
   document.getElementById('tools-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -627,6 +645,12 @@ async function boot() {
         }
         break;
       }
+      case 'breathe': {
+        const on = document.body.classList.contains('wake-still');
+        setWakeBreathe(on, true);
+        ui.toast(on ? '待客呼吸：开' : '待客呼吸：已关，屏幕不再脉动', 2000);
+        break;
+      }
       case 'lesson':
         show.startTutorial();
         setTools(false);
@@ -636,7 +660,7 @@ async function boot() {
         break;
       case 'reset':
         try {
-          ['shadowplay:lesson', 'shadowplay:lesson:finger', 'shadowplay:bgm'].forEach((k) => {
+          ['shadowplay:lesson', 'shadowplay:lesson:finger', 'shadowplay:bgm', 'shadowplay:wakebreath'].forEach((k) => {
             sessionStorage.removeItem(k);
             localStorage.removeItem(k);
           });
@@ -834,6 +858,13 @@ async function boot() {
     /* ignore */
   }
   ui.setMusicToggle(audio.bgmEnabled);
+  // 记住上次的「待客呼吸」开关：关过一次的人下次不想再被脉动吵
+  // 这里把按钮的亮/暗也对齐（默认是开的，所以默认就是亮着的）
+  try {
+    setWakeBreathe(localStorage.getItem('shadowplay:wakebreath') !== '0');
+  } catch (e) {
+    /* ignore */
+  }
   if (params.get('autostart') === '1') {
     setTimeout(() => {
       show.setState(STATE.PLAY);
