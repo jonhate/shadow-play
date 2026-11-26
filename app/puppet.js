@@ -205,7 +205,8 @@ export class Puppet {
     this.walkPhase += dt * (2.6 + 2.4 * Math.abs(move)) * (this.walkAmount > 0.02 ? 1 : 0);
     // ---- 位移（舞台层）：只允许在"画卷"（影幕）内部走，边界由 Show 按 viewWidth 与皮影宽度算好
     const limit = this.walkLimit ?? 620;
-    this.x = clamp(this.x + move * dt * 150, -limit, limit);
+    // walkSpeed 默认 150（自动演绎的步速）；手掌带路时 Show 会临时调到 320，跟得上手
+    this.x = clamp(this.x + move * dt * (this.walkSpeed ?? 150), -limit, limit);
 
     // ---- 呼吸/待机（皮影挂在竹签上本来就会轻轻晃，但要慢、要小）
     const idle = ctx.idle ?? true;

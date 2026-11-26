@@ -783,6 +783,9 @@ export class Show {
   update(dt, now = performance.now()) {
     this.clock += dt;
     this.stateTime += dt;
+    // 每帧先把行走速度复位：只有"手掌带路"时才会临时调快到 320（见 followMove）
+    if (this.lead) this.lead.walkSpeed = 150;
+    if (this.support) this.support.walkSpeed = 150;
     this.gestureHands = this.readHands ? this.readHands(now) : null;
     const input = this.gatherInput(dt, now);
     if (input.count > 0) this.lastHandsTime = this.clock;
@@ -1120,7 +1123,7 @@ export class Show {
   }
 
   /** 一只手指一个皮影：同侧手臂跟手 + 手掌横移带动走位。返回该皮影的迈步意图 */
-  drivePuppetWithHand(puppet, hand, screenSide) {
+  drivePuppetWithHand(puppet, hand, screenSide, dt = 1 / 60) {
     const armSide = this.armSideFor(puppet, screenSide);
     const other = armSide === 'left' ? 'right' : 'left';
     // 手的目标点也夹在影幕内：手移到画框外时，皮影的手停在框边，不会伸到画卷外面
@@ -1156,14 +1159,45 @@ export class Show {
     }
 
     // 手掌左右移动 → 这个皮影跟着走（握拳定住 / 松手时站住）
-    if (hand.fist) return 0; // 握拳＝定住，站住不动（两种模式一致）
-    if (this.fingerMode && !hand.open) return 0; // 手指模式：松开签就不走
-    // 目标也限制在画卷内：手移出画框也不会把皮影拽出去
-    const limit = puppet.walkLimit ?? 480;
-    const targetX = clamp(hand.stage.x * this.walkGain, -limit, limit);
-    const dx = targetX - puppet.x;
-    if (Math.abs(dx) < 70) return 0; // 死区，免得手抖就乱走
-    return clamp(dx / 130, -0.95, 0.95);
+    if (hand.fist) { puppet.followX = null; return 0; } // 握拳＝定住，站住不动（两种模式一致）
+    if (this.fingerMode && !hand.open) { puppet.followX = null; return 0; } // 手指模式：松开签就不走
+    return this.followMove(hand, puppet, dt);
+  }
+
+  /**
+   * 手掌横向位置 → 皮影该站的位置（线性全幅映射）。
+   * 旧算法是 stage.x * walkGain，而 stage.x 已经放大 1.9 倍再夹到 ±0.55 幅宽：
+   * 手掌离开画面中线一点点，目标就顶满上下限，手再挪目标也不变、皮影只能一路小跑，
+   * 观感就是"跟不上、慢半拍，停下时还差半个身位"。这里直接用手掌归一化坐标线性映射，
+   * 手扫满画面 ↔ 走满整幅画卷，中间没有失效区。
+   */
+  followTargetX(hand, puppet) {
+    const limit = puppet.walkLimit ?? 430;
+    const raw = hand && hand.hand;
+    const pt = raw ? raw.pinchPoint || raw.palm : null;
+    const px = pt ? pt.x : null;
+    if (px == null) {
+      // 键鼠兜底 / 合成手没有掌点：退回旧的 stage 投影
+      return clamp((hand?.stage?.x ?? 0) * this.walkGain, -limit, limit);
+    }
+    return clamp((0.5 - px) * 2, -1, 1) * limit;
+  }
+
+  /**
+   * 跟随手掌的行走意图：按"离目标还有多远"给速度，近处自然减速、几乎到点就停。
+   * 死区收到 6px（原来 70/130px，手停下来皮影还差半个身位），偏差 70px 就走满速；
+   * 配合 walkSpeed 320，一段画卷两三秒走完，手到哪它跟到哪。
+   */
+  followMove(hand, puppet, dt = 1 / 60) {
+    const target = this.followTargetX(hand, puppet);
+    // 目标本身做约 60ms 平滑：手的小抖动不会被放大成抽筋式走动
+    puppet.followX = puppet.followX == null
+      ? target
+      : lerp(puppet.followX, target, 1 - Math.exp(-16 * dt));
+    const dx = puppet.followX - puppet.x;
+    if (Math.abs(dx) < 6) return 0;
+    puppet.walkSpeed = 320;
+    return clamp(dx / 70, -1, 1);
   }
 
   /**
@@ -1255,8 +1289,8 @@ export class Show {
       this.leadMove = 0;
       this.supportMove = 0;
       if (hands.length >= 2) {
-        const m0 = this.drivePuppetWithHand(pups[0], hands[0].h, hands[0].side);
-        const m1 = this.drivePuppetWithHand(pups[1], hands[1].h, hands[1].side);
+        const m0 = this.drivePuppetWithHand(pups[0], hands[0].h, hands[0].side, dt);
+        const m1 = this.drivePuppetWithHand(pups[1], hands[1].h, hands[1].side, dt);
         if (pups[0] === lead) {
           this.leadMove = m0;
           this.supportMove = m1;
@@ -1268,7 +1302,7 @@ export class Show {
         // 只有一只手：手在画面哪半边，就管那半边的皮影
         const h = hands[0];
         const target = h.h.stage.x < 0 ? pups[0] : pups[1];
-        const mv = this.drivePuppetWithHand(target, h.h, h.side);
+        const mv = this.drivePuppetWithHand(target, h.h, h.side, dt);
         if (target === lead) this.leadMove = mv;
         else this.supportMove = mv;
       }
@@ -1320,16 +1354,15 @@ export class Show {
         const L = a.left;
         const R = a.right;
         const anyFist = (L && L.fist) || (R && R.fist);
-        let cx = null;
-        if (L && R) cx = (L.stage.x + R.stage.x) / 2;
-        else if (L) cx = L.stage.x;
-        else if (R) cx = R.stage.x;
-        if (cx != null && !anyFist) {
-          const lim = lead.walkLimit ?? 430;
-          const targetX = clamp(cx * 0.6, -lim, lim);
-          const dx = targetX - lead.x;
-          // 死区：手只是稍微偏一点不算“要走”，免得抬手就把人带跑
-          move = Math.abs(dx) < 130 ? 0 : clamp(dx / 150, -0.9, 0.9);
+        const pointOf = (h) => {
+          const raw = h && h.hand;
+          const pt = raw ? raw.pinchPoint || raw.palm : null;
+          return pt ? pt.x : null;
+        };
+        const pxs = [pointOf(L), pointOf(R)].filter((v) => v != null);
+        if (pxs.length && !anyFist) {
+          const cx = pxs.reduce((s, v) => s + v, 0) / pxs.length;
+          move = this.followMove({ hand: { palm: { x: cx } } }, lead, dt);
         }
       }
 
@@ -1338,6 +1371,7 @@ export class Show {
         lead.clearHandTarget('right');
         lead.setHeld('left', false);
         lead.setHeld('right', false);
+        lead.followX = null; // 手都离开了：清掉跟随记忆，下次抬手重新对齐
       }
     }
 
