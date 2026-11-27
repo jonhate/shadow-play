@@ -629,7 +629,10 @@ export class Show {
     const p = { left: null, right: null };
     for (const side of ['left', 'right']) {
       const h = playerHands[side];
-      if (!h || h.age > 0.35) continue;
+      // 手被 MediaPipe 短暂丢掉（手移到画面边缘很常见）时不要立刻撒手：
+      // 0.9s 内继续用最后一次掌点带着走，只是这期间不再改手型状态。
+      if (!h || h.age > 1.2) continue;
+      const stale = h.age > 0.35;
       if (this.fingerMode) {
         // ---- 方案一：捏合即执签。拇指-食指捏住 = 签被夹住 → 手臂跟"握点"走；
         //      松开 = 放签 → 手臂自然垂落。
@@ -672,8 +675,9 @@ export class Show {
       const mode = this.handMode(h);
       p[side] = {
         stage: this.handToStage(h),
-        fist: mode === 'fist',
-        open: mode === 'open',
+        fist: !stale && mode === 'fist',
+        open: !stale && mode === 'open',
+        stale,
         vx: h.vx,
         vy: h.vy,
         hand: h,
@@ -1159,8 +1163,8 @@ export class Show {
     }
 
     // 手掌左右移动 → 这个皮影跟着走（握拳定住 / 松手时站住）
-    if (hand.fist) { puppet.followX = null; return 0; } // 握拳＝定住，站住不动（两种模式一致）
-    if (this.fingerMode && !hand.open) { puppet.followX = null; return 0; } // 手指模式：松开签就不走
+    if (hand.fist && !hand.stale) { puppet.followX = null; return 0; } // 握拳＝定住（手已丢失时不算）
+    if (this.fingerMode && !hand.open && !hand.stale) { puppet.followX = null; return 0; } // 手指模式：松开签就不走
     return this.followMove(hand, puppet, dt);
   }
 
@@ -1180,7 +1184,9 @@ export class Show {
       // 键鼠兜底 / 合成手没有掌点：退回旧的 stage 投影
       return clamp((hand?.stage?.x ?? 0) * this.walkGain, -limit, limit);
     }
-    return clamp((0.5 - px) * 2, -1, 1) * limit;
+    // 只用手掌在画面中间 70% 的行程就能走满整幅画卷（0.5→0.15/0.85 即到边）：
+    // 观众不必把手伸到镜头最边缘，也就不会动不动撞上"手再挪皮影也不动"的墙。
+    return clamp((0.5 - px) / 0.42, -1, 1) * limit;
   }
 
   /**
@@ -1193,11 +1199,11 @@ export class Show {
     // 目标本身做约 60ms 平滑：手的小抖动不会被放大成抽筋式走动
     puppet.followX = puppet.followX == null
       ? target
-      : lerp(puppet.followX, target, 1 - Math.exp(-16 * dt));
+      : lerp(puppet.followX, target, 1 - Math.exp(-30 * dt));
     const dx = puppet.followX - puppet.x;
-    if (Math.abs(dx) < 6) return 0;
-    puppet.walkSpeed = 320;
-    return clamp(dx / 70, -1, 1);
+    if (Math.abs(dx) < 4) return 0;
+    puppet.walkSpeed = 900;
+    return clamp(dx / 44, -1, 1);
   }
 
   /**
@@ -1375,10 +1381,13 @@ export class Show {
       }
     }
 
+    // 手在带路时用 24/s（约 42ms 跟上），否则"手停了皮影还在飘"；
+    // 自动演绎/剧情仍用 8/s，保留原来那种慢悠悠的韵味。
+    const handDriven = this.splitHands && !auto && !idle;
     this.moveIntent = lerp(
       this.moveIntent,
-      idle ? 0 : this.splitHands && !auto ? this.leadMove : move,
-      1 - Math.exp(-8 * dt),
+      idle ? 0 : handDriven ? this.leadMove : move,
+      1 - Math.exp(-(handDriven ? 24 : 8) * dt),
     );
 
     // 这里原来"走到画卷边上就回身"。现在取消：朝向只在开戏时按 cast 定好（主角朝右、配角朝左），
