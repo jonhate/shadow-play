@@ -355,6 +355,7 @@ export class Show {
     this.swingLatch = 0; // 甩袖是瞬时动作，检测到后保持 0.5 秒
     this.cueHideUntil = 0; // 刚过一拍时短暂隐藏提示条
     this.rollZero = { left: null, right: null }; // 捏住那一刻的掌面角，作为转腕零点
+    this.handClaims = new Map(); // 手（label）→ 它正在管的皮影，换手/丢手都不轻易改派
     this.postureTimer = 0;
     this.prevPalmX = null;
     // 自动演绎
@@ -1282,7 +1283,29 @@ export class Show {
       if (a.left) hands.push({ side: 'left', h: a.left });
       if (a.right) hands.push({ side: 'right', h: a.right });
       hands.sort((p, q) => p.h.stage.x - q.h.stage.x);
-      const pups = [lead, this.support].sort((p, q) => p.x - q.x);
+      // ---- 谁管哪只皮影：按"这只手认领过的皮影"来，不每帧重排
+      // 原来每帧把皮影按当前 x 排序、再按手掌落在哪半边分配：手一丢再抬起就可能被派给
+      // 另一只皮影；两只在路上互相超过时也会当场换人。表现就是正在带的那只突然站住、
+      // 另一只从屏幕另一头横穿到手掌位置，看着像"手一丢皮影自己跑回中间"。
+      const puppets = [lead, this.support].filter(Boolean);
+      const taken = new Set();
+      const claimFor = (h) => {
+        const key = h.h.label || h.side;
+        const want = this.handClaims.get(key);
+        if (want && puppets.includes(want) && !taken.has(want)) return want;
+        const tgt = this.followTargetX(h.h, lead);
+        let best = null;
+        let bestD = Infinity;
+        for (const p of puppets) {
+          if (taken.has(p)) continue;
+          const d = Math.abs(p.x - tgt);
+          if (d < bestD) {
+            bestD = d;
+            best = p;
+          }
+        }
+        return best;
+      };
       // 先全部复位，没手的那只就自然垂着
       for (const p of [lead, this.support]) {
         p.clearHandTarget('left');
@@ -1294,24 +1317,16 @@ export class Show {
       }
       this.leadMove = 0;
       this.supportMove = 0;
-      if (hands.length >= 2) {
-        const m0 = this.drivePuppetWithHand(pups[0], hands[0].h, hands[0].side, dt);
-        const m1 = this.drivePuppetWithHand(pups[1], hands[1].h, hands[1].side, dt);
-        if (pups[0] === lead) {
-          this.leadMove = m0;
-          this.supportMove = m1;
-        } else {
-          this.leadMove = m1;
-          this.supportMove = m0;
-        }
-      } else if (hands.length === 1) {
-        // 只有一只手：手在画面哪半边，就管那半边的皮影
-        const h = hands[0];
-        const target = h.h.stage.x < 0 ? pups[0] : pups[1];
-        const mv = this.drivePuppetWithHand(target, h.h, h.side, dt);
-        if (target === lead) this.leadMove = mv;
-        else this.supportMove = mv;
+      const moves = new Map();
+      for (const h of hands) {
+        const target = claimFor(h);
+        if (!target || taken.has(target)) continue;
+        taken.add(target);
+        this.handClaims.set(h.h.label || h.side, target);
+        moves.set(target, this.drivePuppetWithHand(target, h.h, h.side, dt));
       }
+      this.leadMove = moves.get(lead) || 0;
+      this.supportMove = moves.get(this.support) || 0;
       move = this.leadMove;
     } else {
       let rollL = null;
