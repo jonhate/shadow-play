@@ -337,6 +337,7 @@ export class Show {
     // 主控手（每人一只）：先抬起/一直在的那只手带路，另一只手只负责配合
     this.mainSides = new Map(); // 'A'/'B' → 'left' | 'right'
     this.mainSideTimer = new Map(); // 主控手消失计时（超过 0.6s 才换人）
+    this.freeArm = null; // 副手"跟着动一点/偶尔活动"的状态（side/idle/next/burst）
     this.turnLatch = { left: false, right: false };
     this.turnCool = { left: 0, right: 0 };
     this.walkGain = 0.95; // 手掌横向位置 → 皮影目标 x 的比例
@@ -1133,6 +1134,57 @@ export class Show {
     if (this.stateTime > 2.6) this.setState(STATE.ATTRACT);
   }
 
+  /**
+   * 副手：观众只用一只手时，皮影不能一条胳膊忙死、另一条死垂着——真人执签两只手都在动。
+   * 做法很克制：
+   *   · 主手抬高，副手那条胳膊就跟着抬一点（目标高度取主手高度再压低一截，权重 0.3）
+   *   · 横向只在身子边上小幅偏一点，绝不横穿身体（那是"胳膊拧到身前"的来源）
+   *   · 每隔 7~11 秒自己活动一下：一个 1.4 秒的小抬臂再落回，权重临时加到 0.55
+   * 全是往 setHandTarget 喂一个软目标，所以仍然走 IK + 阻尼，动作是连续自然的。
+   */
+  driveSecondaryArm(puppet, presentSide, handState, missingSide, dt = 1 / 60) {
+    if (!puppet || !handState || !handState.hand) {
+      this.freeArm = null;
+      return;
+    }
+    const armSide = this.armSideFor(puppet, missingSide);
+    const pt = handState.hand.pinchPoint || handState.hand.palm;
+    const base = handState.stage || (pt ? this.handToStage({ palm: pt }) : null);
+    if (!base) return;
+    // 偶尔自己活动：7~11 秒一次，1.4 秒的小动作（sin 包络 0→1→0）
+    if (!this.freeArm || this.freeArm.side !== armSide) {
+      this.freeArm = { side: armSide, idle: 0, next: 7 + Math.random() * 4, burst: 0 };
+    }
+    const f = this.freeArm;
+    f.idle += dt;
+    if (f.idle > f.next) {
+      const p = (f.idle - f.next) / 1.4;
+      if (p >= 1) {
+        f.idle = 0;
+        f.next = 7 + Math.random() * 4;
+        f.burst = 0;
+      } else {
+        f.burst = Math.sin(Math.PI * p);
+      }
+    } else {
+      f.burst = 0;
+    }
+    const burst = f.burst || 0;
+    // 高度：从"自然下垂"（stage y≈-205）起算，只按主手高度抬一小截（最多 95）。
+    // 这台皮影是侧面剪影，两条胳膊在画面上几乎叠在一处，抬到肩线以上就会从脸前
+    // 横过去，所以副手永远压在肩下；IK 在 y≈-40 附近还会翻解，-60 是安全上界。
+    const lift = clamp((base.y + 20) * 0.18, 0, 95);
+    const restY = clamp(-205 + lift, -215, -110);
+    // 偶尔"自己活动一下"：把目标临时抬到胸前，权重也加大，形成一个看得见的小抬手
+    const y = restY + (-85 - restY) * burst;
+    const x = puppet.x + (base.x - puppet.x) * -0.12;
+    const aim = this.stage.clampToScreen
+      ? this.stage.clampToScreen(x, y)
+      : { x, y };
+    puppet.setHeld(armSide, false);
+    puppet.setHandTarget(armSide, aim, { weight: 0.45 + 0.35 * burst });
+  }
+
   /** 一只手指一个皮影：同侧手臂跟手 + 手掌横移带动走位。返回该皮影的迈步意图 */
   drivePuppetWithHand(puppet, hand, screenSide, dt = 1 / 60) {
     const armSide = this.armSideFor(puppet, screenSide);
@@ -1378,13 +1430,16 @@ export class Show {
     } else {
       let rollL = null;
       let rollR = null;
+      const missingSides = [];
       for (const side of ['left', 'right']) {
         const h = a[side];
         const armSide = this.armSideFor(lead, side);
         if (!h) {
-          // 这只手不在画面里：松开执签，让皮影手自然下垂
+          // 这只手不在画面里：松开执签，让皮影手自然垂落
+          // （下面还会让这条胳膊轻轻跟着主手动一点，见 driveSecondaryArm）
           lead.setHeld(armSide, false);
           lead.clearHandTarget(armSide);
+          missingSides.push(side);
           continue;
         }
         if (this.fingerMode) {
@@ -1419,6 +1474,17 @@ export class Show {
       }
       lead.rollL = rollL;
       lead.rollR = rollR;
+
+      // ---- 副手：另一只手不在画面里时，让那条胳膊"稍微跟着动一下、偶尔自己活动"
+      // 主手握着拳（定格）时不做，否则"定格"就定不住
+      const presentHand = missingSides.length === 1 ? a[missingSides[0] === 'left' ? 'right' : 'left'] : null;
+      if (!idle && presentHand && !presentHand.fist) {
+        const missing = missingSides[0];
+        const present = missing === 'left' ? 'right' : 'left';
+        this.driveSecondaryArm(lead, present, presentHand, missing, dt);
+      } else {
+        this.freeArm = null;
+      }
 
       // ---- 水平移动：皮影跟着“双手的中心”走，手往右挪它就往右走
       if (!idle) {
