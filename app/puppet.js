@@ -283,19 +283,21 @@ export class Puppet {
         const raw = clampToReach(arm, { x: tx, y: ty });
         // 目标点做指数逼近 + 死区：手部关键点的微抖不该传成整条胳膊的颤
         if (!tgt.smoothed) tgt.smoothed = { ...raw };
-        const k = 1 - Math.exp(-12 * dt);
+        const k = 1 - Math.exp(-10 * dt);
         const dx = raw.x - tgt.smoothed.x;
         const dy = raw.y - tgt.smoothed.y;
         const dist = Math.hypot(dx, dy);
         if (dist > 1.2) {
-          const step = dist > 60 ? 1 : k; // 大位移直接跟，小抖动慢慢靠
+          // 大位移也别一帧到位（以前 dist>60 就直接 step=1，手一抬胳膊"啪"地弹过去，
+          // 看着像机器人）。现在最多按 4 倍时间常数靠拢，抬臂要走过两三帧。
+          const step = dist > 120 ? Math.min(1, k * 4) : k;
           tgt.smoothed.x += dx * step;
           tgt.smoothed.y += dy * step;
         }
         const sol = solveArm(arm, tgt.smoothed);
         const w = clamp(tgt.weight, 0, 1);
         // 关节角再做一次阻尼，彻底吃掉逐帧抖动（以上一帧为起点）
-        const spd = 16 + this.swingAmount * 16;
+        const spd = 12 + this.swingAmount * 16;
         arm.upper.theta = dampAngle(pa.u, wrapPi(sol.thetaUpper * w), dt, spd);
         arm.lower.theta = dampAngle(pa.l, wrapPi(sol.thetaLower * w), dt, spd);
         // 记住当前姿势：握拳的瞬间从这里开始“执签”
@@ -303,8 +305,10 @@ export class Puppet {
       } else {
         // 自然下垂：直接回资产本身的 rest 姿势（θ=0 就是画师画好的垂手姿态），
         // 不要用 IK 去凑一个目标点——那会把袖子拧到身前。
-        arm.upper.theta = dampAngle(pa.u, 0, dt, 8);
-        arm.lower.theta = dampAngle(pa.l, 0, dt, 8);
+        // 手上没有目标时也别让整条胳膊像木头一样定死：留一点随呼吸的微摆（自然垂落）
+        const sway = Math.sin(this.time * 0.9 + (side === 'left' ? 0 : 1.7)) * 0.022;
+        arm.upper.theta = dampAngle(pa.u, sway, dt, 8);
+        arm.lower.theta = dampAngle(pa.l, sway * 0.6, dt, 8);
         tgt.target = null;
         tgt.smoothed = null;
         this.heldPose.set(side, { upper: arm.upper.theta, lower: arm.lower.theta, target: null });

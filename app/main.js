@@ -833,8 +833,8 @@ async function boot() {
     show.fingerMode = true;
     ui.toast('手指模式 · 拇指食指捏住=执签，搓动=转腕', 4200);
   }
-  // 一只手管一个皮影（默认开）；?split=0 回到“两只手都控主角”
-  if (params.get('split') === '0') show.splitHands = false;
+  // 默认：一双手都控主角（主控手带路 + 副手配合）；?split=1 回到「一只手管一个皮影」
+  if (params.get('split') === '1') show.splitHands = true;
   audio.loadLines?.(); // 有配置台词配音就加载清单
   audio.loadBgmFiles?.(); // 有戏剧原声文件就优先用它
   // 有戏剧原声（自带唱词/音乐）时默认不念 TTS 台词，避免两层人声打架；

@@ -329,8 +329,14 @@ export class Show {
     this.gripThreshold = 0.55; // 拇指-食指距离 / 手掌尺寸，小于它算“捏住”
     this.rollScale = 0.55; // 搓动角 → 转腕幅度
 
-    // 一只手管一个皮影：左手管左边那个，右手管右边那个
-    this.splitHands = true;
+    // 默认：一个观众的一双手都作用于同一只主角皮影——主控手带路、副手配合。
+    // 以前默认是「一只手管一个皮影」（左手管左边那只、右手管右边那只），
+    // 一个人抬手时常常只动到一只皮影的一条胳膊，另一条手臂僵在身侧，
+    // 观感是"只有一只手动，而且那只手卡着"。想回旧玩法加 ?split=1。
+    this.splitHands = false;
+    // 主控手（每人一只）：先抬起/一直在的那只手带路，另一只手只负责配合
+    this.mainSides = new Map(); // 'A'/'B' → 'left' | 'right'
+    this.mainSideTimer = new Map(); // 主控手消失计时（超过 0.6s 才换人）
     this.turnLatch = { left: false, right: false };
     this.turnCool = { left: 0, right: 0 };
     this.walkGain = 0.95; // 手掌横向位置 → 皮影目标 x 的比例
@@ -617,7 +623,7 @@ export class Show {
     else if (hand.extended >= 3 && hand.openness > 1.52) next = 'open';
     // 滞回：只有“非常确定”的切换才生效
     if (prev === 'fist' && next === 'open') {
-      if (hand.openness < 1.55) next = 'fist';
+      if (hand.openness < 1.45) next = 'fist';
     } else if (prev === 'open' && next === 'fist') {
       if (hand.openness > 1.25) next = 'open';
     }
@@ -1160,6 +1166,9 @@ export class Show {
         if (!wasHeld) this.audio?.cueSfx?.('hold');
       } else if (hand.open) {
         puppet.setHandTarget(armSide, aim, { weight: 1 });
+      } else {
+        // 半开不合：软跟，别让手臂僵在上一帧（见 updatePuppets 里同一处说明）
+        puppet.setHandTarget(armSide, aim, { weight: 0.55 });
       }
     }
 
@@ -1185,26 +1194,32 @@ export class Show {
       // 键鼠兜底 / 合成手没有掌点：退回旧的 stage 投影
       return clamp((hand?.stage?.x ?? 0) * this.walkGain, -limit, limit);
     }
-    // 只用手掌在画面中间 70% 的行程就能走满整幅画卷（0.5→0.15/0.85 即到边）：
-    // 观众不必把手伸到镜头最边缘，也就不会动不动撞上"手再挪皮影也不动"的墙。
-    return clamp((0.5 - px) / 0.42, -1, 1) * limit;
+    // 手掌行程映射：0.5 居中，handSpan 越小＝手挪一点点皮影就走很远（越"急"）。
+    // 0.46 ⇒ 手掌走到 0.04/0.96 才顶到画卷两端：整幅画卷要手扫过大半个画面才走完，
+    // 观感比 0.42 慢半拍、也不容易被手的一点点抖动带到边上。
+    return clamp((0.5 - px) / 0.46, -1, 1) * limit;
   }
 
   /**
    * 跟随手掌的行走意图：按"离目标还有多远"给速度，近处自然减速、几乎到点就停。
-   * 死区收到 6px（原来 70/130px，手停下来皮影还差半个身位），偏差 70px 就走满速；
-   * 配合 walkSpeed 320，一段画卷两三秒走完，手到哪它跟到哪。
+   *
+   * 手感基调（2026-11-28 用户："动的太快了，跟手慢一点"）：上一版为了"贴手"把
+   * 追手提到 900px/s、平滑压到 33ms，结果皮影像被手拽着弹射，反而更像游戏不像皮影。
+   * 这一版往回收成"有重量的慢步"：
+   *   · 满速 400px/s、偏差 64px 才走满（原来 900 / 44）
+   *   · 目标平滑约 50ms（20/s），手抖不会被放大成抽筋
+   *   · 死区 6px，停手时只差一点点就站住，不会原地磨
+   * 半幅 374px 现在约 0.9s 走完（原来 0.42s）——和真人挪一步皮影的节奏接近。
    */
   followMove(hand, puppet, dt = 1 / 60) {
     const target = this.followTargetX(hand, puppet);
-    // 目标本身做约 60ms 平滑：手的小抖动不会被放大成抽筋式走动
     puppet.followX = puppet.followX == null
       ? target
-      : lerp(puppet.followX, target, 1 - Math.exp(-30 * dt));
+      : lerp(puppet.followX, target, 1 - Math.exp(-20 * dt));
     const dx = puppet.followX - puppet.x;
-    if (Math.abs(dx) < 4) return 0;
-    puppet.walkSpeed = 900;
-    return clamp(dx / 44, -1, 1);
+    if (Math.abs(dx) < 6) return 0;
+    puppet.walkSpeed = 400;
+    return clamp(dx / 64, -1, 1);
   }
 
   /**
@@ -1235,6 +1250,38 @@ export class Show {
       if (pups.length === 2) return hand.stage.x < 0 ? pups[0] : pups[1];
     }
     return this.lead;
+  }
+
+  /**
+   * 主控手是谁：一个人只有一只"主控手"带路，另一只手在旁边配合。
+   * 规则尽量迟钝——先抬起的那只手当主控手，一直在就不换；它被遮住/放下
+   * 超过 0.6 秒才把主控权交给另一只。这样皮影的走位只认一只手的意图，
+   * 不会在两手之间来回蹭（以前两手平分权重，手一抖皮影就左右摇摆）。
+   */
+  primarySide(pair, key, dt = 1 / 60) {
+    const has = { left: !!(pair && pair.left), right: !!(pair && pair.right) };
+    if (!has.left && !has.right) return null;
+    let cur = this.mainSides.get(key) || null;
+    if (cur && has[cur]) {
+      this.mainSideTimer.set(key, 0);
+      return cur;
+    }
+    if (cur && !has[cur]) {
+      const t = (this.mainSideTimer.get(key) || 0) + dt;
+      this.mainSideTimer.set(key, t);
+      if (t < 0.6) return cur; // 只是被遮了一下，还是它
+    }
+    // 需要（重新）认主：只按"先抬起来"——同时出现时，抬得更高的那只算主控手
+    let next = null;
+    if (has.left && !has.right) next = 'left';
+    else if (has.right && !has.left) next = 'right';
+    else {
+      const yOf = (h) => (h && h.hand && h.hand.palm ? h.hand.palm.y : 0.5);
+      next = yOf(pair.left) <= yOf(pair.right) ? 'left' : 'right';
+    }
+    this.mainSides.set(key, next);
+    this.mainSideTimer.set(key, 0);
+    return next;
   }
 
   updatePuppets(dt, input) {
@@ -1365,7 +1412,10 @@ export class Show {
           continue;
         }
         if (h.open) lead.setHandTarget(armSide, h.stage, { weight: 1 });
-        // 半开不合（既不是拳也不是掌）：保持上一帧目标，不乱动
+        // 半开不合（既不是拳也不是掌，识别抖动时最常见）：别把手臂冻在上一帧。
+        // 以前这里什么都不做，目标点停在原处，手已经挪开了手臂还僵在那儿——
+        // 观感就是"胳膊卡着"。现在用较小权重继续软跟，手臂会慢慢走过去。
+        else lead.setHandTarget(armSide, h.stage, { weight: 0.55 });
       }
       lead.rollL = rollL;
       lead.rollR = rollR;
@@ -1382,7 +1432,13 @@ export class Show {
         };
         const pxs = [pointOf(L), pointOf(R)].filter((v) => v != null);
         if (pxs.length && !anyFist) {
-          const cx = pxs.reduce((s, v) => s + v, 0) / pxs.length;
+          // 主控手带路、副手配合：主控手占七成，另一只手只把皮影"带一点点"。
+          // 只有一只手时它自然就是主控手，全权带路。
+          const main = this.primarySide({ left: L, right: R }, 'A', dt);
+          const mainPx = main ? pointOf(main === 'left' ? L : R) : null;
+          const otherPx = main ? pointOf(main === 'left' ? R : L) : null;
+          let cx = pxs.reduce((s, v) => s + v, 0) / pxs.length;
+          if (mainPx != null) cx = otherPx != null ? mainPx * 0.7 + otherPx * 0.3 : mainPx;
           move = this.followMove({ hand: { palm: { x: cx } } }, lead, dt);
         }
       }
@@ -1396,13 +1452,13 @@ export class Show {
       }
     }
 
-    // 手在带路时用 24/s（约 42ms 跟上），否则"手停了皮影还在飘"；
+    // 手在带路时用 15/s（约 67ms 起速），比自动演绎快，但不再是"手一动就弹出去"；
     // 自动演绎/剧情仍用 8/s，保留原来那种慢悠悠的韵味。
-    const handDriven = this.splitHands && !auto && !idle;
+    const handDriven = !auto && !idle && (!!a.left || !!a.right || !!(b && (b.left || b.right)));
     this.moveIntent = lerp(
       this.moveIntent,
-      idle ? 0 : handDriven ? this.leadMove : move,
-      1 - Math.exp(-(handDriven ? 24 : 8) * dt),
+      idle ? 0 : move,
+      1 - Math.exp(-(handDriven ? 15 : 8) * dt),
     );
 
     // 这里原来"走到画卷边上就回身"。现在取消：朝向只在开戏时按 cast 定好（主角朝右、配角朝左），
