@@ -329,15 +329,15 @@ export class Show {
     this.gripThreshold = 0.55; // 拇指-食指距离 / 手掌尺寸，小于它算“捏住”
     this.rollScale = 0.55; // 搓动角 → 转腕幅度
 
-    // 默认：一个观众的一双手都作用于同一只主角皮影——主控手带路、副手配合。
-    // 以前默认是「一只手管一个皮影」（左手管左边那只、右手管右边那只），
-    // 一个人抬手时常常只动到一只皮影的一条胳膊，另一条手臂僵在身侧，
-    // 观感是"只有一只手动，而且那只手卡着"。想回旧玩法加 ?split=1。
-    this.splitHands = false;
+    // 默认：一人两角——左手管左边那只皮影、右手管右边那只。这就是"一个人演两个角色"的
+    // 演法，录视频靠的就是它。每只皮影只有一只手在管，它另一条胳膊由 driveSecondaryArm
+    // 轻轻跟着动（不再死垂着）。想改成"一双手都作用于同一只主角皮影"（主控手带路、
+    // 副手配合）：工具面板 →「一人两角」关掉，或 ?split=0。
+    this.splitHands = true;
     // 主控手（每人一只）：先抬起/一直在的那只手带路，另一只手只负责配合
     this.mainSides = new Map(); // 'A'/'B' → 'left' | 'right'
     this.mainSideTimer = new Map(); // 主控手消失计时（超过 0.6s 才换人）
-    this.freeArm = null; // 副手"跟着动一点/偶尔活动"的状态（side/idle/next/burst）
+    // 副手"跟着动一点/偶尔活动"的状态按皮影各存一份（puppet._freeArm），不在这里集中持有
     this.turnLatch = { left: false, right: false };
     this.turnCool = { left: 0, right: 0 };
     this.walkGain = 0.95; // 手掌横向位置 → 皮影目标 x 的比例
@@ -748,7 +748,12 @@ export class Show {
     }
     const hv = (p) => (p ? (p.hand ? p.hand.vx || 0 : p.vx || 0) : 0);
     sway = Math.max(Math.abs(hv(L)), Math.abs(hv(R)));
-    const bothRaised = !!(L && R) && L.stage.y > 200 && R.stage.y > 200;
+    // 「双手举高 · 亮相」的界线。stage y 的换算是 (0.54 - 手掌y) × 1750，
+    // 所以 200 只相当于手掌在胸口以上一点——真人演戏时双手常在那儿，
+    // 结果一抬眼就触发"亮相"，两条胳膊被抬高 110px 顶到臂展极限，手怎么动都不跟。
+    // 一人两角时更要收紧：双手都在手边是常态，只有真把手举过头顶才算亮相。
+    const raiseY = this.splitHands ? 470 : 200;
+    const bothRaised = !!(L && R) && L.stage.y > raiseY && R.stage.y > raiseY;
 
     const result = {
       players,
@@ -778,8 +783,12 @@ export class Show {
     // 以前只卡两掌中心的直线距离（0.14/0.18 × 画面宽），真人手常常差两三厘米
     // 没真正贴住、又会被 MediaPipe 抖，要么够不着要么一碰就跳 → 现在拆成
     // 「横向够近」+「纵向基本齐平」两个条件，横向放宽到一拃宽 ≈ 画面宽的 1/3。
-    const nearLimit = this.fingerMode ? 0.40 : 0.36;
-    const levelLimit = this.fingerMode ? 0.16 : 0.14;
+    // 一人两角时两只手各管一只皮影，双手本来就在中线附近、高度也常齐平——
+    // 阈值不收紧的话，"正常演两个角色"会被误判成作揖，把两条胳膊拽到胸前定住，
+    // 手怎么动都不跟（这就是"手臂卡着"的来源之一）。
+    const duoHands = !!this.splitHands;
+    const nearLimit = this.fingerMode ? 0.40 : duoHands ? 0.22 : 0.36;
+    const levelLimit = this.fingerMode ? 0.16 : duoHands ? 0.11 : 0.14;
     const near =
       input.pairDx != null &&
       input.pairDx < nearLimit &&
@@ -1143,19 +1152,20 @@ export class Show {
    * 全是往 setHandTarget 喂一个软目标，所以仍然走 IK + 阻尼，动作是连续自然的。
    */
   driveSecondaryArm(puppet, presentSide, handState, missingSide, dt = 1 / 60) {
-    if (!puppet || !handState || !handState.hand) {
-      this.freeArm = null;
+    if (!puppet || !handState) {
+      if (puppet) puppet._freeArm = null;
       return;
     }
     const armSide = this.armSideFor(puppet, missingSide);
-    const pt = handState.hand.pinchPoint || handState.hand.palm;
+    const pt = handState.hand ? handState.hand.pinchPoint || handState.hand.palm : null;
     const base = handState.stage || (pt ? this.handToStage({ palm: pt }) : null);
     if (!base) return;
     // 偶尔自己活动：7~11 秒一次，1.4 秒的小动作（sin 包络 0→1→0）
-    if (!this.freeArm || this.freeArm.side !== armSide) {
-      this.freeArm = { side: armSide, idle: 0, next: 7 + Math.random() * 4, burst: 0 };
+    // 状态按皮影分开存：一人两角时两只皮影各有一条"闲着的胳膊"，不能共用一个计时器
+    if (!puppet._freeArm || puppet._freeArm.side !== armSide) {
+      puppet._freeArm = { side: armSide, idle: 0, next: 7 + Math.random() * 4, burst: 0 };
     }
-    const f = this.freeArm;
+    const f = puppet._freeArm;
     f.idle += dt;
     if (f.idle > f.next) {
       const p = (f.idle - f.next) / 1.4;
@@ -1191,9 +1201,18 @@ export class Show {
     const other = armSide === 'left' ? 'right' : 'left';
     // 手的目标点也夹在影幕内：手移到画框外时，皮影的手停在框边，不会伸到画卷外面
     const aim = this.stage.clampToScreen ? this.stage.clampToScreen(hand.stage.x, hand.stage.y) : hand.stage;
-    // 每只手只管这个皮影的一侧，另一侧自然垂落
-    puppet.setHeld(other, false);
-    puppet.clearHandTarget(other);
+    // 这只手管这个皮影的同侧手臂；另一条胳膊交给"副手回显"轻轻跟着动。
+    // 一人两角时每只皮影只有一只手在管，另一条胳膊要是死垂着，看着就不像活人。
+    if (hand && !hand.fist && !hand.stale) {
+      // 注意传的是「屏幕侧」：driveSecondaryArm 内部会再用 armSideFor 换算成手臂
+      // 的左右，直接把 armSide 传进去会二次换算，结果反而叠到主手那条胳膊上
+      const otherScreen = screenSide === 'left' ? 'right' : 'left';
+      this.driveSecondaryArm(puppet, screenSide, hand, otherScreen, dt);
+    } else {
+      puppet.setHeld(other, false);
+      puppet.clearHandTarget(other);
+      puppet._freeArm = null;
+    }
 
     if (this.fingerMode) {
       // 握拳 = 定住这只手（和手掌模式一样）；否则捏住跟手、松开垂落
@@ -1483,7 +1502,7 @@ export class Show {
         const present = missing === 'left' ? 'right' : 'left';
         this.driveSecondaryArm(lead, present, presentHand, missing, dt);
       } else {
-        this.freeArm = null;
+        lead._freeArm = null;
       }
 
       // ---- 水平移动：皮影跟着“双手的中心”走，手往右挪它就往右走
@@ -1588,8 +1607,10 @@ export class Show {
               : clamp(-this.moveIntent * 0.5, -0.4, 0.4),
         lean: this.support.x > lead.x ? -0.06 : 0.06,
         headTilt: this.still ? 0 : Math.sin(this.clock * 0.4) * 0.018,
-        bow: auto ? this.autoPlan.bow || 0 : 0,
-        flourish: auto ? this.autoPlan.flourish || 0 : 0,
+        // 一人两角：两个人一起作揖 / 一起亮相（各自只手在管各自的胳膊，
+        // 这个"合"就由两个人同时做同一个身段来表达）
+        bow: auto ? this.autoPlan.bow || 0 : split ? bow : 0,
+        flourish: auto ? this.autoPlan.flourish || 0 : split ? flourish : 0,
         rollL: this.support.rollL,
         rollR: this.support.rollR,
         rods: auto || (duo && this.state === STATE.PLAY) || (split && this.state === STATE.PLAY),

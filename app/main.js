@@ -581,6 +581,20 @@ async function boot() {
       }
     }
   };
+  // ---- 一人两角 / 一只手演一只：工具面板里直接切，不用记 URL 参数
+  const handsBtn = toolsPanel?.querySelector('[data-tool="hands"]');
+  const syncHandsBtn = () => {
+    const split = !!show.splitHands;
+    handsBtn?.classList.toggle('is-on', split);
+    const label = handsBtn?.querySelector('b');
+    if (label) label.textContent = split ? '一人两角 · 开' : '一人两角 · 关';
+    const hint = handsBtn?.querySelector('span');
+    if (hint) {
+      hint.textContent = split
+        ? '左手管左边那只、右手管右边那只——一个人演两个角色'
+        : '一双手演同一只皮影：主控手带路、另一只手配合';
+    }
+  };
   const setTools = (on) => toolsPanel?.classList.toggle('is-on', on);
   document.getElementById('tools-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -628,6 +642,26 @@ async function boot() {
       case 'duo':
         location.href = withParam({ duo: '1' });
         break;
+      case 'hands': {
+        show.splitHands = !show.splitHands;
+        try {
+          localStorage.setItem('shadowplay:split', show.splitHands ? '1' : '0');
+        } catch (err) {
+          /* ignore */
+        }
+        // 换模式时清掉旧的手→皮影认领，免得新手势被派到上一模式认领过的那只
+        show.handClaims?.clear?.();
+        show.mainSides?.clear?.();
+        show.mainSideTimer?.clear?.();
+        syncHandsBtn();
+        ui.toast(
+          show.splitHands
+            ? '一人两角：左手管左边那只、右手管右边那只'
+            : '一只手演一只：一双手都作用于同一只主角皮影',
+          2600,
+        );
+        break;
+      }
       case 'finger': {
         if (show.state === STATE.TUTORIAL && show.lesson.id === 'shortcuts') show.skipLesson({ completed: true });
         show.fingerMode = !show.fingerMode;
@@ -660,7 +694,7 @@ async function boot() {
         break;
       case 'reset':
         try {
-          ['shadowplay:lesson', 'shadowplay:lesson:finger', 'shadowplay:bgm', 'shadowplay:wakebreath'].forEach((k) => {
+          ['shadowplay:lesson', 'shadowplay:lesson:finger', 'shadowplay:bgm', 'shadowplay:wakebreath', 'shadowplay:split'].forEach((k) => {
             sessionStorage.removeItem(k);
             localStorage.removeItem(k);
           });
@@ -833,8 +867,18 @@ async function boot() {
     show.fingerMode = true;
     ui.toast('手指模式 · 拇指食指捏住=执签，搓动=转腕', 4200);
   }
-  // 默认：一双手都控主角（主控手带路 + 副手配合）；?split=1 回到「一只手管一个皮影」
+  // 默认：一人两角（左手一只、右手一只）。工具面板 →「一人两角」可切成
+  // "一双手都作用于同一只主角皮影"；上次的选择记在 localStorage，?split=0/1 可强制。
+  try {
+    const savedSplit = localStorage.getItem('shadowplay:split');
+    if (savedSplit === '0' || savedSplit === '1') show.splitHands = savedSplit === '1';
+  } catch (err) {
+    /* ignore */
+  }
   if (params.get('split') === '1') show.splitHands = true;
+  if (params.get('split') === '0') show.splitHands = false;
+  syncHandsBtn();
+  show.handClaims?.clear?.();
   audio.loadLines?.(); // 有配置台词配音就加载清单
   audio.loadBgmFiles?.(); // 有戏剧原声文件就优先用它
   // 有戏剧原声（自带唱词/音乐）时默认不念 TTS 台词，避免两层人声打架；
