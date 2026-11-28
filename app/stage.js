@@ -161,7 +161,7 @@ export class Stage {
    * 依据是相机视野（viewWidth 映射到画布整宽）减去皮影自身半宽，
    * 这样整只皮影都在画框里，不会走出画卷。随窗口比例变化自动重算。
    */
-  walkLimitFor(rigBounds, scale, pad = 26) {
+  walkLimitFor(rigBounds, scale, pad = 8) {
     const halfW = ((rigBounds?.width || 0) * (scale || 0)) / 2;
     return Math.max(60, this.viewWidth / 2 - halfW - pad);
   }

@@ -1247,9 +1247,9 @@ export class Show {
       return clamp((hand?.stage?.x ?? 0) * this.walkGain, -limit, limit);
     }
     // 手掌行程映射：0.5 居中，handSpan 越小＝手挪一点点皮影就走很远（越"急"）。
-    // 0.46 ⇒ 手掌走到 0.04/0.96 才顶到画卷两端：整幅画卷要手扫过大半个画面才走完，
-    // 观感比 0.42 慢半拍、也不容易被手的一点点抖动带到边上。
-    return clamp((0.5 - px) / 0.46, -1, 1) * limit;
+    // 0.36 ⇒ 手掌走到 0.14/0.86 就顶到画卷两端：手不用伸到画框最外侧也能把皮影带到最边上，
+    // 中部仍留一点余量，手的小抖动不会被放大成大幅走位。
+    return clamp((0.5 - px) / 0.36, -1, 1) * limit;
   }
 
   /**
@@ -1490,7 +1490,10 @@ export class Show {
       if (!idle) {
         const L = a.left;
         const R = a.right;
-        const anyFist = (L && L.fist) || (R && R.fist);
+        const main = this.primarySide({ left: L, right: R }, 'A', dt);
+        const mainHand = main === 'left' ? L : R;
+        // 只有主控手握拳才定住。以前任一只手（含不在带路的那只）握拳，整只皮影都站住不动
+        const anyFist = !!(mainHand && mainHand.fist);
         const pointOf = (h) => {
           const raw = h && h.hand;
           const pt = raw ? raw.pinchPoint || raw.palm : null;
@@ -1500,11 +1503,10 @@ export class Show {
         if (pxs.length && !anyFist) {
           // 主控手带路、副手配合：主控手占七成，另一只手只把皮影"带一点点"。
           // 只有一只手时它自然就是主控手，全权带路。
-          const main = this.primarySide({ left: L, right: R }, 'A', dt);
-          const mainPx = main ? pointOf(main === 'left' ? L : R) : null;
-          const otherPx = main ? pointOf(main === 'left' ? R : L) : null;
-          let cx = pxs.reduce((s, v) => s + v, 0) / pxs.length;
-          if (mainPx != null) cx = otherPx != null ? mainPx * 0.7 + otherPx * 0.3 : mainPx;
+          // 主控手全权带路：副手的横向位置不再分走行程
+          // （原来主控 0.7 / 副手 0.3 加权，另一只手只要入画，皮影最多只走到七成）
+          const mainPx = main ? pointOf(mainHand) : null;
+          const cx = mainPx != null ? mainPx : pxs.reduce((s, v) => s + v, 0) / pxs.length;
           move = this.followMove({ hand: { palm: { x: cx } } }, lead, dt);
         }
       }
